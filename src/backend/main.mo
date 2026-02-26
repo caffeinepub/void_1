@@ -1,29 +1,31 @@
 import List "mo:core/List";
 import Map "mo:core/Map";
-import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Text "mo:core/Text";
 import Array "mo:core/Array";
-import Time "mo:core/Time";
 import Iter "mo:core/Iter";
+import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
 import Order "mo:core/Order";
-import Migration "migration";
+import Storage "blob-storage/Storage";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
-import Storage "blob-storage/Storage";
 
-(with migration = Migration.run)
+
+
 actor {
   include MixinStorage();
 
-  // Authorization/Internal State
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  public type MessageType = { #text; #image; #file };
+  public type MessageType = {
+    #text;
+    #image;
+    #file;
+  };
 
   public type Message = {
     id : Text;
@@ -32,7 +34,7 @@ actor {
     timestamp : Int;
     messageType : MessageType;
     replyTo : ?Text;
-    blobId : ?Text; // For referencing Storage.ExternalBlob
+    blobId : ?Text;
     keywords : [Text];
     upvotes : Nat;
   };
@@ -42,10 +44,9 @@ actor {
     lastActive : Int;
   };
 
-  // UserProfile as required by instructions (with app-specific fields)
   public type UserProfile = {
-    voidId : Text;       // Immutable Matrix-style ID (@void...)
-    cosmicHandle : ?Text; // Optional persistent handle
+    voidId : Text;
+    cosmicHandle : ?Text;
   };
 
   public type ChannelType = {
@@ -54,23 +55,22 @@ actor {
     #dm : Text;
   };
 
-  // Persistent State
-  // Maps Principal -> UserProfile for the required profile functions
+  // Persistent state
   let principalProfiles = Map.empty<Principal, UserProfile>();
-  // Maps voidId -> Principal for ownership lookups
+
   let voidIdToPrincipal = Map.empty<Text, Principal>();
   let rooms = Map.empty<Text, Room>();
-  // Invite Tokens
   let inviteTokens = Map.empty<Text, Text>();
-  // Image/File Storage
   let blobs = Map.empty<Text, Storage.ExternalBlob>();
 
-  // Generate Message ID based on current time
+  // Creator Portal state
+  var dailyReflection : ?Text = null;
+  let pinnedMessages = Map.empty<Text, Text>();
+
   func generateMessageId() : Text {
     Time.now().toText();
   };
 
-  // Required profile functions (per instructions)
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can get their profile");
@@ -79,7 +79,6 @@ actor {
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    // Users can view their own profile; admins can view any profile
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
@@ -90,19 +89,16 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
-    // Register voidId -> Principal mapping for ownership checks
+
     voidIdToPrincipal.add(profile.voidId, caller);
     principalProfiles.add(caller, profile);
   };
 
-  // Set and Get Cosmic Handles
   public shared ({ caller }) func setCosmicHandle(voidId : Text, handle : Text) : async () {
-    // Only authenticated users may set a cosmic handle
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can set a cosmic handle");
     };
 
-    // Verify the caller owns the voidId
     switch (voidIdToPrincipal.get(voidId)) {
       case (?owner) {
         if (owner != caller) {
@@ -114,7 +110,6 @@ actor {
       };
     };
 
-    // Update the profile stored under the caller's principal
     let existingProfile = principalProfiles.get(caller);
     let updatedProfile : UserProfile = switch (existingProfile) {
       case (null) {
@@ -128,7 +123,6 @@ actor {
   };
 
   public query ({ caller }) func getCosmicHandle(voidId : Text) : async ?Text {
-    // Public read — no auth check required
     switch (voidIdToPrincipal.get(voidId)) {
       case (null) { null };
       case (?owner) {
@@ -140,7 +134,6 @@ actor {
     };
   };
 
-  // Internal Utility
   func checkUserOwnership(caller : Principal, voidId : Text) {
     switch (voidIdToPrincipal.get(voidId)) {
       case (?owner) {
@@ -154,7 +147,6 @@ actor {
     };
   };
 
-  // Message/Room Utility
   func updateRoom(channel : Text, message : Message) {
     let messages = switch (rooms.get(channel)) {
       case (null) { List.empty<Message>() };
@@ -170,7 +162,6 @@ actor {
     rooms.add(channel, updatedRoom);
   };
 
-  // Messaging Functions
   func filterByKeyword(messages : [Message], keyword : Text) : [Message] {
     messages.filter(
       func(msg) {
@@ -181,7 +172,6 @@ actor {
     );
   };
 
-  // Post message without keywords (for when messages come from LLM, etc.)
   public shared ({ caller }) func postMessage(
     channel : Text,
     ciphertext : Text,
@@ -190,12 +180,10 @@ actor {
     replyTo : ?Text,
     blobId : ?Text,
   ) : async () {
-    // Only authenticated users may post messages
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can post messages");
     };
 
-    // Verify the caller owns the senderVoidId they are posting as
     checkUserOwnership(caller, senderVoidId);
 
     let message : Message = {
@@ -213,7 +201,6 @@ actor {
     updateRoom(channel, message);
   };
 
-  // Post message with keywords
   public shared ({ caller }) func postMessageWithKeywords(
     channel : Text,
     ciphertext : Text,
@@ -223,7 +210,6 @@ actor {
     blobId : ?Text,
     keywords : [Text],
   ) : async () {
-    // Only authenticated users may post messages
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can post messages");
     };
@@ -288,7 +274,6 @@ actor {
     filtered.sliceToArray(0, count);
   };
 
-  // Upvote a message
   public shared ({ caller }) func upvoteMessage(channel : Text, messageId : Text) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can upvote messages");
@@ -306,7 +291,6 @@ actor {
           }
         );
 
-        // Create a new List from the updated array
         let messageList = List.empty<Message>();
         for (msg in updatedMessages.values()) { messageList.add(msg) };
 
@@ -316,7 +300,6 @@ actor {
     };
   };
 
-  // Get Wisdom Score
   public query ({ caller }) func getWisdomScore(voidId : Text) : async Nat {
     let messages = List.empty<Message>();
 
@@ -335,7 +318,6 @@ actor {
     totalUpvotes;
   };
 
-  // Channel Management
   public query ({ caller }) func listChannels() : async [ChannelType] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can list channels");
@@ -406,7 +388,6 @@ actor {
     channelId;
   };
 
-  // Blob Association with Messages
   public shared ({ caller }) func associateBlobWithMessage(blobId : Text, messageId : Text, channel : Text) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can associate blobs");
@@ -431,7 +412,6 @@ actor {
     };
   };
 
-  // Invite Token Functions
   public shared ({ caller }) func generateInviteToken(voidId : Text) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can generate invite tokens");
@@ -466,13 +446,55 @@ actor {
     inviteTokens.get(token);
   };
 
-  // Internal Utility
   func createDMChannelId(voidId1 : Text, voidId2 : Text) : Text {
     let prefix = "DM-";
     if (voidId1 < voidId2) {
       prefix # voidId1 # "_" # voidId2;
     } else {
       prefix # voidId2 # "_" # voidId1;
+    };
+  };
+
+  // Daily Reflection
+  public shared ({ caller }) func setDailyReflection(text : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can set daily reflection");
+    };
+    dailyReflection := ?text;
+  };
+
+  public query ({ caller }) func getDailyReflection() : async ?Text {
+    dailyReflection;
+  };
+
+  // User Directory
+  public query ({ caller }) func getAllUserProfiles() : async [UserProfile] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can get all user profiles");
+    };
+    principalProfiles.values().toArray();
+  };
+
+  // Pinned Messages
+  public shared ({ caller }) func pinMessage(channel : Text, messageId : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can pin messages");
+    };
+    pinnedMessages.add(channel, messageId);
+  };
+
+  public query ({ caller }) func getPinnedMessage(channel : Text) : async ?Message {
+    switch (pinnedMessages.get(channel)) {
+      case (null) { null };
+      case (?messageId) {
+        switch (rooms.get(channel)) {
+          case (null) { null };
+          case (?room) {
+            let messages = room.messages.toArray();
+            messages.find(func(msg) { msg.id == messageId });
+          };
+        };
+      };
     };
   };
 };

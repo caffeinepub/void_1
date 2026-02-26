@@ -82,15 +82,18 @@ export const idlService = IDL.Service({
   'associateBlobWithMessage' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCosmicHandle' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+  'getDailyReflection' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
   'getMessages' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Vec(Message)], ['query']),
   'getMessagesByKeyword' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat],
       [IDL.Vec(Message)],
       ['query'],
     ),
+  'getPinnedMessage' : IDL.Func([IDL.Text], [IDL.Opt(Message)], ['query']),
   'getSortedDMs' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
@@ -105,6 +108,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(Message)],
       ['query'],
     ),
+  'pinMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'postMessage' : IDL.Func(
       [
         IDL.Text,
@@ -133,6 +137,7 @@ export const idlService = IDL.Service({
   'resolveInviteToken' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setCosmicHandle' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'setDailyReflection' : IDL.Func([IDL.Text], [], []),
   'upvoteMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
 });
 
@@ -217,9 +222,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCosmicHandle' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+    'getDailyReflection' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
     'getMessages' : IDL.Func(
         [IDL.Text, IDL.Nat],
         [IDL.Vec(Message)],
@@ -230,6 +237,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Message)],
         ['query'],
       ),
+    'getPinnedMessage' : IDL.Func([IDL.Text], [IDL.Opt(Message)], ['query']),
     'getSortedDMs' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
@@ -244,6 +252,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Message)],
         ['query'],
       ),
+    'pinMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'postMessage' : IDL.Func(
         [
           IDL.Text,
@@ -272,6 +281,7 @@ export const idlFactory = ({ IDL }) => {
     'resolveInviteToken' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setCosmicHandle' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'setDailyReflection' : IDL.Func([IDL.Text], [], []),
     'upvoteMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
   });
 };

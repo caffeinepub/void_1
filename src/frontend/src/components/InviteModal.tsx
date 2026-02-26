@@ -1,15 +1,20 @@
 /**
  * InviteModal — Share a VOID invite link via QR code, WhatsApp, Telegram, or clipboard.
  * Generates an invite token via the backend when opened.
+ * QR code is rendered via Google Charts API (no npm package needed).
  */
 import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { useGenerateInviteToken } from '../hooks/useQueries';
 import { X, Copy, Check, Loader2 } from 'lucide-react';
 import { SiWhatsapp, SiTelegram } from 'react-icons/si';
 
 // ─── Pre-filled invite message ────────────────────────────────────────────────
 const INVITE_MESSAGE = 'Join me in VOID – a private space for truth and wisdom.';
+
+/** Build a QR code image URL using the Google Charts API (no npm package needed). */
+function buildQrUrl(text: string, size = 160): string {
+  return `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encodeURIComponent(text)}&chco=FFD700|000000&chld=M|1`;
+}
 
 interface InviteModalProps {
   isOpen: boolean;
@@ -20,7 +25,6 @@ interface InviteModalProps {
 export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProps) {
   const { mutateAsync: generateToken, isPending } = useGenerateInviteToken();
   const [token, setToken] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,24 +34,11 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
     let cancelled = false;
 
     setToken(null);
-    setQrDataUrl(null);
     setError(null);
 
     generateToken(voidId)
-      .then(async (t) => {
-        if (cancelled) return;
-        setToken(t);
-        // Generate QR code from the invite URL
-        const url = `${window.location.origin}/invite/${t}`;
-        const dataUrl = await QRCode.toDataURL(url, {
-          width: 200,
-          margin: 1,
-          color: {
-            dark: '#FFD700',   // gold dots
-            light: '#000000',  // void black background
-          },
-        });
-        if (!cancelled) setQrDataUrl(dataUrl);
+      .then((t) => {
+        if (!cancelled) setToken(t);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -138,22 +129,20 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
           {token && !error && (
             <>
               {/* QR code */}
-              {qrDataUrl ? (
-                <div
-                  className="p-3"
-                  style={{
-                    background: '#000000',
-                    border: '1px solid rgba(255,215,0,0.2)',
-                    boxShadow: '0 0 20px rgba(255,215,0,0.08)',
-                  }}
-                >
-                  <img src={qrDataUrl} alt="Invite QR code" className="w-[160px] h-[160px]" />
-                </div>
-              ) : (
-                <div className="w-[160px] h-[160px] border border-void-gold/20 flex items-center justify-center">
-                  <Loader2 size={16} className="text-void-gold/40 animate-spin" />
-                </div>
-              )}
+              <div
+                className="p-3"
+                style={{
+                  background: '#000000',
+                  border: '1px solid rgba(255,215,0,0.2)',
+                  boxShadow: '0 0 20px rgba(255,215,0,0.08)',
+                }}
+              >
+                <img
+                  src={buildQrUrl(inviteUrl)}
+                  alt="Invite QR code"
+                  className="w-[160px] h-[160px]"
+                />
+              </div>
 
               {/* Invite message */}
               <p className="text-white/40 text-xs text-center italic leading-relaxed max-w-[220px]">

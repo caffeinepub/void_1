@@ -1,83 +1,353 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-    :root {
-        --radius: 0.625rem;
-        --background: 1 0 0;
-        --foreground: 0.145 0 0;
-        --card: 1 0 0;
-        --card-foreground: 0.145 0 0;
-        --popover: 1 0 0;
-        --popover-foreground: 0.145 0 0;
-        --primary: 0.205 0 0;
-        --primary-foreground: 0.985 0 0;
-        --secondary: 0.97 0 0;
-        --secondary-foreground: 0.205 0 0;
-        --muted: 0.97 0 0;
-        --muted-foreground: 0.556 0 0;
-        --accent: 0.97 0 0;
-        --accent-foreground: 0.205 0 0;
-        --destructive: 0.577 0.245 27.325;
-        --destructive-foreground: 0.985 0 0;
-        --border: 0.922 0 0;
-        --input: 0.922 0 0;
-        --ring: 0.708 0 0;
-        --chart-1: 0.646 0.222 41.116;
-        --chart-2: 0.6 0.118 184.704;
-        --chart-3: 0.398 0.07 227.392;
-        --chart-4: 0.828 0.189 84.429;
-        --chart-5: 0.769 0.188 70.08;
-        --sidebar: 0.985 0 0;
-        --sidebar-foreground: 0.145 0 0;
-        --sidebar-primary: 0.205 0 0;
-        --sidebar-primary-foreground: 0.985 0 0;
-        --sidebar-accent: 0.97 0 0;
-        --sidebar-accent-foreground: 0.205 0 0;
-        --sidebar-border: 0.922 0 0;
-        --sidebar-ring: 0.708 0 0;
-    }
+  :root {
+    --radius: 0px;
 
-    .dark {
-        --background: 0.145 0 0;
-        --foreground: 0.985 0 0;
-        --card: 0.205 0 0;
-        --card-foreground: 0.985 0 0;
-        --popover: 0.269 0 0;
-        --popover-foreground: 0.985 0 0;
-        --primary: 0.922 0 0;
-        --primary-foreground: 0.205 0 0;
-        --secondary: 0.269 0 0;
-        --secondary-foreground: 0.985 0 0;
-        --muted: 0.269 0 0;
-        --muted-foreground: 0.708 0 0;
-        --accent: 0.371 0 0;
-        --accent-foreground: 0.985 0 0;
-        --destructive: 0.704 0.191 22.216;
-        --destructive-foreground: 0.205 0 0;
-        --border: 1 0 0 / 10%;
-        --input: 1 0 0 / 15%;
-        --ring: 0.556 0 0;
-        --chart-1: 0.488 0.243 264.376;
-        --chart-2: 0.696 0.17 162.48;
-        --chart-3: 0.769 0.188 70.08;
-        --chart-4: 0.627 0.265 303.9;
-        --chart-5: 0.645 0.246 16.439;
-        --sidebar: 0.205 0 0;
-        --sidebar-foreground: 0.985 0 0;
-        --sidebar-primary: 0.488 0.243 264.376;
-        --sidebar-primary-foreground: 0.985 0 0;
-        --sidebar-accent: 0.269 0 0;
-        --sidebar-accent-foreground: 0.985 0 0;
-        --sidebar-border: 1 0 0 / 10%;
-        --sidebar-ring: 0.439 0 0;
-    }
+    /* VOID Color System — OKLCH */
+    --background: 0.08 0.015 280;
+    --foreground: 0.95 0.01 80;
+    --card: 0.1 0.02 280;
+    --card-foreground: 0.95 0.01 80;
+    --popover: 0.1 0.02 280;
+    --popover-foreground: 0.95 0.01 80;
+    --primary: 0.82 0.18 85;
+    --primary-foreground: 0.08 0.015 280;
+    --secondary: 0.15 0.04 280;
+    --secondary-foreground: 0.95 0.01 80;
+    --muted: 0.15 0.02 280;
+    --muted-foreground: 0.55 0.02 280;
+    --accent: 0.45 0.22 295;
+    --accent-foreground: 0.95 0.01 80;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.82 0.18 85 / 15%;
+    --input: 0.82 0.18 85 / 10%;
+    --ring: 0.82 0.18 85;
+    --chart-1: 0.82 0.18 85;
+    --chart-2: 0.45 0.22 295;
+    --chart-3: 0.6 0.15 280;
+    --chart-4: 0.7 0.12 85;
+    --chart-5: 0.55 0.18 295;
+    --sidebar: 0.06 0.015 280;
+    --sidebar-foreground: 0.95 0.01 80;
+    --sidebar-primary: 0.82 0.18 85;
+    --sidebar-primary-foreground: 0.08 0.015 280;
+    --sidebar-accent: 0.12 0.02 280;
+    --sidebar-accent-foreground: 0.95 0.01 80;
+    --sidebar-border: 0.82 0.18 85 / 10%;
+    --sidebar-ring: 0.82 0.18 85;
+  }
 
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
+  .dark {
+    --background: 0.08 0.015 280;
+    --foreground: 0.95 0.01 80;
+    --card: 0.1 0.02 280;
+    --card-foreground: 0.95 0.01 80;
+    --popover: 0.1 0.02 280;
+    --popover-foreground: 0.95 0.01 80;
+    --primary: 0.82 0.18 85;
+    --primary-foreground: 0.08 0.015 280;
+    --secondary: 0.15 0.04 280;
+    --secondary-foreground: 0.95 0.01 80;
+    --muted: 0.15 0.02 280;
+    --muted-foreground: 0.55 0.02 280;
+    --accent: 0.45 0.22 295;
+    --accent-foreground: 0.95 0.01 80;
+    --destructive: 0.704 0.191 22.216;
+    --destructive-foreground: 0.205 0 0;
+    --border: 0.82 0.18 85 / 15%;
+    --input: 0.82 0.18 85 / 10%;
+    --ring: 0.82 0.18 85;
+    --sidebar: 0.06 0.015 280;
+    --sidebar-foreground: 0.95 0.01 80;
+    --sidebar-primary: 0.82 0.18 85;
+    --sidebar-primary-foreground: 0.08 0.015 280;
+    --sidebar-accent: 0.12 0.02 280;
+    --sidebar-accent-foreground: 0.95 0.01 80;
+    --sidebar-border: 0.82 0.18 85 / 10%;
+    --sidebar-ring: 0.82 0.18 85;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Force dark class onto html element always */
+    @apply dark;
+    background-color: #000000;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    /* Hard-coded fallback so no white flash even before CSS vars resolve */
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.15);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.3);
+  }
+}
+
+@layer components {
+  /* ─── Void Background ─────────────────────────────────────────── */
+  .void-bg {
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
+  }
+
+  /* ─── Page Background (full cosmic depth for individual pages) ── */
+  .page-bg {
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.14) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.11) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.9) 0%, transparent 70%),
+      radial-gradient(ellipse at 0% 100%, rgba(15, 0, 31, 0.6) 0%, transparent 50%);
+  }
+
+  /* ─── Glow Text ───────────────────────────────────────────────── */
+  .void-glow-text {
+    color: #FFD700;
+    text-shadow:
+      0 0 10px rgba(255, 215, 0, 0.8),
+      0 0 20px rgba(255, 215, 0, 0.5),
+      0 0 40px rgba(255, 215, 0, 0.3),
+      0 0 80px rgba(255, 215, 0, 0.1);
+  }
+
+  /* ─── Buttons ─────────────────────────────────────────────────── */
+  .void-btn-primary {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.1));
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #FFD700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .void-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(218, 165, 32, 0.2));
+    border-color: rgba(255, 215, 0, 0.7);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+  }
+
+  .void-btn-send {
+    color: #FFD700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .void-btn-send:hover:not(:disabled) {
+    color: #fff;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6));
+  }
+
+  .void-btn-icon {
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    color: rgba(255, 215, 0, 0.7);
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .void-btn-icon:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.5);
+    color: #FFD700;
+  }
+
+  /* ─── Room Cards ──────────────────────────────────────────────── */
+  .room-card-light {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(218, 165, 32, 0.04));
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    transition: all 0.3s ease;
+  }
+  .room-card-light:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.08));
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+  }
+
+  .room-card-dark {
+    background: linear-gradient(135deg, rgba(142, 45, 226, 0.08), rgba(74, 0, 255, 0.04));
+    border: 1px solid rgba(142, 45, 226, 0.2);
+    transition: all 0.3s ease;
+  }
+  .room-card-dark:hover {
+    background: linear-gradient(135deg, rgba(142, 45, 226, 0.15), rgba(74, 0, 255, 0.08));
+    border-color: rgba(142, 45, 226, 0.4);
+    box-shadow: 0 0 20px rgba(142, 45, 226, 0.1);
+  }
+}
+
+/* ─── Gold Dust Particle Animation ─────────────────────────────── */
+@keyframes goldDustFloat {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0);
+    opacity: 0;
+  }
+}
+
+.gold-dust-particle {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FFD700, #DAA520);
+  box-shadow: 0 0 6px 2px rgba(255, 215, 0, 0.5);
+  pointer-events: none;
+  z-index: 9999;
+  animation: goldDustFloat 0.9s ease-out forwards;
+}
+
+/* ─── Nebula Fade-in ────────────────────────────────────────────── */
+@keyframes nebulaFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nebula-fade-in {
+  animation: nebulaFadeIn 0.4s ease-out forwards;
+}
+
+/* ─── Sacred Geometry Divider ───────────────────────────────────── */
+.sacred-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+}
+.sacred-divider::before {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 215, 0, 0.4);
+  font-size: 10px;
+  background: #000;
+  padding: 0 8px;
+}
+
+/* ─── Star Field Animation ──────────────────────────────────────── */
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+
+@keyframes starDrift {
+  0% { transform: translateY(0px) translateX(0px); }
+  33% { transform: translateY(-3px) translateX(2px); }
+  66% { transform: translateY(2px) translateX(-1px); }
+  100% { transform: translateY(0px) translateX(0px); }
+}
+
+@keyframes nebulaShimmer {
+  0% { opacity: 0.04; transform: scale(1) rotate(0deg); }
+  33% { opacity: 0.09; transform: scale(1.03) rotate(1deg); }
+  66% { opacity: 0.06; transform: scale(0.98) rotate(-1deg); }
+  100% { opacity: 0.04; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes nebulaShimmer2 {
+  0% { opacity: 0.06; transform: scale(1.02) rotate(0deg); }
+  50% { opacity: 0.12; transform: scale(0.97) rotate(2deg); }
+  100% { opacity: 0.06; transform: scale(1.02) rotate(0deg); }
+}
+
+.star-field-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.star-field-layer .star {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.nebula-shimmer-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.nebula-shimmer-layer .nebula-blob-1 {
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  top: -10%;
+  left: -15%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 0, 255, 0.18) 0%, rgba(142, 45, 226, 0.08) 40%, transparent 70%);
+  animation: nebulaShimmer 12s ease-in-out infinite;
+}
+
+.nebula-shimmer-layer .nebula-blob-2 {
+  position: absolute;
+  width: 50vw;
+  height: 50vw;
+  top: 30%;
+  right: -20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(142, 45, 226, 0.14) 0%, rgba(74, 0, 255, 0.06) 40%, transparent 70%);
+  animation: nebulaShimmer2 16s ease-in-out infinite;
+}
+
+.nebula-shimmer-layer .nebula-blob-3 {
+  position: absolute;
+  width: 40vw;
+  height: 40vw;
+  bottom: -5%;
+  left: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.06) 0%, rgba(218, 165, 32, 0.02) 40%, transparent 70%);
+  animation: nebulaShimmer 20s ease-in-out infinite reverse;
 }

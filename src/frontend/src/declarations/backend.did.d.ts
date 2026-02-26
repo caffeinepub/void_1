@@ -66,20 +66,24 @@ export interface _SERVICE {
   'associateBlobWithMessage' : ActorMethod<[string, string, string], undefined>,
   'createDM' : ActorMethod<[string, string], string>,
   'generateInviteToken' : ActorMethod<[string], string>,
+  'getAllUserProfiles' : ActorMethod<[], Array<UserProfile>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCosmicHandle' : ActorMethod<[string], [] | [string]>,
+  'getDailyReflection' : ActorMethod<[], [] | [string]>,
   'getMessages' : ActorMethod<[string, bigint], Array<Message>>,
   'getMessagesByKeyword' : ActorMethod<
     [string, string, bigint],
     Array<Message>
   >,
+  'getPinnedMessage' : ActorMethod<[string], [] | [Message]>,
   'getSortedDMs' : ActorMethod<[], Array<ChannelType>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getWisdomScore' : ActorMethod<[string], bigint>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'listChannels' : ActorMethod<[], Array<ChannelType>>,
   'loadOlderMessages' : ActorMethod<[string, bigint, bigint], Array<Message>>,
+  'pinMessage' : ActorMethod<[string, string], undefined>,
   'postMessage' : ActorMethod<
     [string, string, string, MessageType, [] | [string], [] | [string]],
     undefined
@@ -99,6 +103,7 @@ export interface _SERVICE {
   'resolveInviteToken' : ActorMethod<[string], [] | [string]>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setCosmicHandle' : ActorMethod<[string, string], undefined>,
+  'setDailyReflection' : ActorMethod<[string], undefined>,
   'upvoteMessage' : ActorMethod<[string, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

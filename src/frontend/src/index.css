@@ -80,6 +80,7 @@
 
   html {
     @apply dark;
+    background-color: #000000;
   }
 
   body {
@@ -87,9 +88,10 @@
     font-family: 'Space Grotesk', system-ui, sans-serif;
     background-color: #000000;
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.03) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
     min-height: 100vh;
   }
 
@@ -114,9 +116,21 @@
   .void-bg {
     background-color: #000000;
     background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.03) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
+  }
+
+  /* ─── Page Background (full cosmic depth for individual pages) ── */
+  .page-bg {
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.14) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.11) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.9) 0%, transparent 70%),
+      radial-gradient(ellipse at 0% 100%, rgba(15, 0, 31, 0.6) 0%, transparent 50%);
   }
 
   .nebula-bg {

@@ -4,9 +4,10 @@
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { type Message } from '../backend';
-import { useGetMessages, useLoadOlderMessages, useUpvoteMessage } from '../hooks/useQueries';
+import { useGetMessages, useLoadOlderMessages, useUpvoteMessage, useGetPinnedMessage } from '../hooks/useQueries';
 import { useEncryption } from '../hooks/useEncryption';
 import { useVoidId } from '../hooks/useVoidId';
+import { registerKnownUser } from '../lib/userRegistry';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import { ChevronUp } from 'lucide-react';
@@ -38,6 +39,10 @@ export default function ChatView({ channel, channelType, title }: ChatViewProps)
   const [autoScroll, setAutoScroll] = useState(true);
   const [activeKeyword, setActiveKeyword] = useState<string | null>(null);
 
+  // Fetch pinned message for public rooms (rendered in future enhancement)
+  const isPublicRoom = channelType !== 'dm';
+  useGetPinnedMessage(isPublicRoom ? channel : '');
+
   // ─── Decrypt new messages as they arrive ─────────────────────────────────────
   useEffect(() => {
     if (!isReady || messages.length === 0) return;
@@ -66,13 +71,26 @@ export default function ChatView({ channel, channelType, title }: ChatViewProps)
     });
   }, [olderMessages, isReady, decryptReceived]);
 
-  // ─── Auto-scroll to bottom on new messages ───────────────────────────────────
-  const msgCount = messages.length;
+  // ─── Register known users from messages (for DM search) ─────────────────────
   useEffect(() => {
-    if (autoScroll && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0) return;
+    messages.forEach((msg) => {
+      if (msg.senderVoidId) registerKnownUser(msg.senderVoidId);
+    });
+  }, [messages]);
+
+  // ─── Auto-scroll to bottom on new messages ───────────────────────────────────
+  // Use a ref to track last message ID to avoid derived-state deps lint error
+  const prevLastMsgRef = useRef<string>('');
+  useEffect(() => {
+    const lastId = messages[messages.length - 1]?.id ?? '';
+    if (lastId !== prevLastMsgRef.current) {
+      prevLastMsgRef.current = lastId;
+      if (autoScroll && bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
     }
-  }, [msgCount, autoScroll]);
+  });
 
   // ─── Scroll handler ───────────────────────────────────────────────────────────
   const handleLoadOlder = useCallback(async () => {

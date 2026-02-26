@@ -276,3 +276,97 @@ export function useResolveInviteToken(token: string) {
     staleTime: 60_000,
   });
 }
+
+// ─── Creator Portal ───────────────────────────────────────────────────────────
+
+/** Get the current daily reflection text (public, unauthenticated access) */
+export function useGetDailyReflection() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<string | null>({
+    queryKey: ['dailyReflection'],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getDailyReflection();
+    },
+    enabled: !!actor && !actorFetching,
+    staleTime: 60_000,
+  });
+}
+
+/** Set the daily reflection text (admin only) */
+export function useSetDailyReflection() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (text: string) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.setDailyReflection(text);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailyReflection'] });
+    },
+  });
+}
+
+/** Get all user profiles (admin only) */
+export function useGetAllUserProfiles() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<import('../backend').UserProfile[]>({
+    queryKey: ['allUserProfiles'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllUserProfiles();
+    },
+    enabled: !!actor && !actorFetching,
+    staleTime: 30_000,
+  });
+}
+
+/** Check if the currently authenticated caller is an admin */
+export function useIsCallerAdmin() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<boolean>({
+    queryKey: ['isCallerAdmin'],
+    queryFn: async () => {
+      if (!actor) return false;
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !actorFetching,
+    staleTime: 60_000,
+  });
+}
+
+/** Pin a message in a channel as a Void Transmission (admin only) */
+export function usePinMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ channel, messageId }: { channel: string; messageId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      await actor.pinMessage(channel, messageId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['pinnedMessage', variables.channel] });
+    },
+  });
+}
+
+/** Get the pinned message for a channel */
+export function useGetPinnedMessage(channel: string) {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<import('../backend').Message | null>({
+    queryKey: ['pinnedMessage', channel],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getPinnedMessage(channel);
+    },
+    enabled: !!actor && !actorFetching && !!channel,
+    staleTime: 30_000,
+  });
+}

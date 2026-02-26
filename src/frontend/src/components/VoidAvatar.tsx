@@ -4,6 +4,8 @@ interface VoidAvatarProps {
   voidId: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** If provided, renders a custom photo instead of the generated cosmic avatar */
+  customAvatarUrl?: string;
 }
 
 const SIZE_MAP = {
@@ -18,14 +20,20 @@ const GLOW_MAP = {
   lg: 'shadow-[0_0_20px_rgba(255,215,0,0.4)]',
 };
 
-export default function VoidAvatar({ voidId, size = 'md', className = '' }: VoidAvatarProps) {
-  const avatarUrl = useAvatar(voidId);
+export default function VoidAvatar({
+  voidId,
+  size = 'md',
+  className = '',
+  customAvatarUrl,
+}: VoidAvatarProps) {
+  const generatedUrl = useAvatar(voidId);
+  const src = customAvatarUrl ?? generatedUrl;
 
   return (
     <img
-      src={avatarUrl}
+      src={src}
       alt={voidId}
-      className={`rounded-full border border-void-gold/30 ${SIZE_MAP[size]} ${GLOW_MAP[size]} ${className}`}
+      className={`rounded-full border border-void-gold/30 object-cover ${SIZE_MAP[size]} ${GLOW_MAP[size]} ${className}`}
     />
   );
 }

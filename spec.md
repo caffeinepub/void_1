@@ -1,101 +1,48 @@
-# VOID – The Light & Dark Encrypted Wisdom Network
+# VOID
 
 ## Current State
+VOID is a privacy-first cosmic sanctuary app (Telegram + Reddit hybrid) on ICP. It has:
+- Internet Identity auth with auto-generated `@void_shadow_XXXXXXXX:canister` VOID IDs
+- Optional cosmic handles set once via ProfileSettings and ProfileSetupModal
+- ProfileSettings page with: avatar display, cosmic handle input, E2EE key info, logout
+- DMList page with a "New Message" modal that takes a plain text input requiring full VOID ID (`@void_shadow_xxxxxxxx:canister`) — this search is broken/non-functional
+- Backend has: `getCosmicHandle(voidId)`, `getAllUserProfiles()` (admin only), `searchUsers` and `lookupVoidIdByHandle` are NOT in the backend yet
+- UserProfile type: `{ voidId: string; cosmicHandle?: string }`
 
-VOID is a privacy-first, E2EE messaging app built on ICP (Internet Computer) with:
-- Internet Identity authentication → auto-generated anonymous @void_shadow_XXXX VOID IDs
-- Optional persistent cosmic handle (set once)
-- Light Room (gold theme) + Dark Room (purple theme) — public threaded rooms
-- 1-on-1 DMs with polling
-- Threaded replies (Reddit-style nested under messages)
-- Max 50 visible messages, load older on scroll
-- Mock E2EE via client-side encryption (tweetnacl)
-- Cosmic UI: void black + deep dark blue + glowing gold + purple accents + nebula gradients
-- Nebula procedural avatars (sacred geometry SVG)
-- PWA with offline support
-- Splash screen with VOID manifesto
-
-Backend: Motoko canister with User, Room, DM, and blob-storage components.
-Frontend: React + TypeScript + Tailwind + TanStack Router + TanStack Query.
+**Known bugs:**
+- New Message modal search is non-functional — users must type full exact VOID ID which breaks DM creation
+- No cosmic handle search support
+- No profile bio field
+- No profile photo upload
 
 ## Requested Changes (Diff)
 
 ### Add
-
-1. **VOID Token Mining Teaser (Future Phase)**
-   - New `/mining` route with a full-page "Mining Coming Soon" teaser
-   - Cosmic animated section: pulsing nebula orb, glowing "VOID Token" text
-   - Message: "Mine VOID tokens by sharing wisdom and staying present in Light & Dark rooms."
-   - Placeholder stats panel (locked/coming soon): tokens earned, wisdom score, daily mining rate
-   - "Notify Me" action (stores a flag locally, shows confirmed state)
-   - Navigation item added to sidebar and mobile nav
-
-2. **Invite Friends & Family System**
-   - Invite button in Navigation sidebar and DM List page
-   - Per-DM invite button in DM header (for existing DMs and new connections)
-   - Invite modal with:
-     - Shareable link (e.g., `https://app.void.chat/invite/<voidId>`)
-     - QR code generated client-side (qrcode library)
-     - One-tap share buttons: WhatsApp, Telegram, copy link
-     - Pre-filled message: "Join me in VOID – a private space for truth and wisdom."
-   - Backend: `generateInviteToken` and `resolveInviteToken` functions to map invite tokens to voidIds
-   - Frontend invite landing page at `/invite/:token` that prompts login then opens DM
-
-3. **Keyword-Powered Rooms (Tags System)**
-   - Backend: `keywords` field added to Message type (array of Text)
-   - `postMessageWithKeywords` endpoint (or extend `postMessage`) to accept keywords
-   - `getMessagesByKeyword(channel, keyword, count)` query for filtering
-   - Frontend: keyword chip selector in MessageInput for Light Room / Dark Room
-     - Light Room keywords: truth, mindset, clarity, omnism, wisdom, consciousness, unity, love
-     - Dark Room keywords: maya, illusion, matrix, shadow, ego, deception, deconstruction, fear
-   - Keyword filter bar at top of ChatView (horizontal scrollable pill row)
-   - Active filter highlights only matching messages, others dimmed
-   - Tags displayed on MessageBubble as small colored pills
+- **`useSearchUsers` hook** in `useQueries.ts`: client-side search that uses the existing `getAllUserProfiles()` call but stores results locally. Since `getAllUserProfiles` is admin-only, implement a local directory: maintain a localStorage cache of known users (populated as users are encountered in messages). For the New Message modal, search is done against: (a) exact/partial VOID ID match typed by the user, (b) cosmic handle lookup via existing `getCosmicHandle(voidId)`. The search input should support both formats.
+- **Smart search in New Message modal** (`DMList.tsx`): replace the plain input with a dual-mode search field. If the user types something starting with `@void_shadow_`, treat it as a direct VOID ID and allow opening the channel. If they type anything else (a name/handle), show a helper message: "Enter full VOID ID or ask your friend to share their VOID ID." Add a "Paste VOID ID" quick-action button. The key fix: the current input does not trim/format the VOID ID correctly before passing to `createDM` — fix the `handleCreateDM` function to normalize the input (trim whitespace, handle if user typed with or without leading `@`).
+- **Profile Bio field** in `ProfileSettings.tsx` and `ProfileSetupModal.tsx`: add a textarea for bio (max 280 chars), persisted as part of UserProfile via `saveCallerUserProfile`. Store bio in localStorage as `void_bio_{voidId}` since the backend UserProfile type only has `voidId` and `cosmicHandle` — bio is stored client-side only for MVP.
+- **Profile Photo upload** in `ProfileSettings.tsx`: add a circular photo upload button overlaid on the existing VoidAvatar. On click, open a file picker (images only, max 2MB). On selection, compress/resize to 200x200 and store as base64 in localStorage as `void_avatar_{voidId}`. Display the custom photo in place of the generated VoidAvatar wherever the user's own avatar appears. Create a `useCustomAvatar` hook that reads/writes from localStorage.
+- **`useCustomAvatar` hook** at `src/frontend/src/hooks/useCustomAvatar.ts`: reads custom avatar base64 from localStorage, provides `setAvatar(base64: string)` and `avatarUrl: string | null` — null means use generated VoidAvatar.
 
 ### Modify
-
-- `main.mo`: Add `keywords` field to Message type; add invite token storage; add keyword filtering query
-- `Navigation.tsx`: Add Mining nav item + Invite button
-- `ChatView.tsx`: Add keyword filter bar (for lightRoom/darkRoom only)
-- `MessageInput.tsx`: Add keyword chip selector (for lightRoom/darkRoom only)
-- `MessageBubble.tsx`: Add keyword pill display
-- `App.tsx`: Add `/mining` and `/invite/:token` routes
-- `DMList.tsx`: Add Invite button in header
-- `DMView.tsx`: Add Invite button in DM header
+- `ProfileSettings.tsx`: Add bio textarea (280 char limit with counter), add profile photo upload circle (Camera icon overlay on avatar), show custom photo if set, save bio to localStorage on Save button click.
+- `ProfileSetupModal.tsx`: Add bio textarea step (optional, "Describe your cosmic journey..."), load/save bio from localStorage.
+- `DMList.tsx` `handleCreateDM`: Fix the core bug — normalize targetVoidId before passing to `createDM`. The input value must be the raw VOID ID portion that the backend expects. Add input validation with inline error message if the format looks wrong.
+- `VoidAvatar.tsx`: Accept an optional `customAvatarUrl` prop — if provided, render `<img>` instead of the SVG canvas avatar.
 
 ### Remove
-
 - Nothing removed
 
 ## Implementation Plan
-
-1. Update Motoko `main.mo`:
-   - Add `keywords: [Text]` to Message type
-   - Add invite token map (`inviteTokens: Map<Text, Text>`) — token → voidId
-   - Add `postMessage` signature to accept keywords array
-   - Add `getMessagesByKeyword(channel, keyword, count)` query
-   - Add `generateInviteToken(voidId)` → returns token (Text)
-   - Add `resolveInviteToken(token)` → returns ?voidId
-
-2. Regenerate backend via `generate_motoko_code`
-
-3. Frontend changes (via frontend subagent):
-   a. New `MiningPage.tsx` — full cosmic teaser page with animations
-   b. New `InviteModal.tsx` — QR code + share buttons modal
-   c. New `InviteLanding.tsx` — `/invite/:token` landing page
-   d. Update `Navigation.tsx` — add Mining nav item + Invite button
-   e. Update `ChatView.tsx` — keyword filter bar for public rooms
-   f. Update `MessageInput.tsx` — keyword chip picker for public rooms
-   f. Update `MessageBubble.tsx` — show keyword pills on messages
-   g. Update `App.tsx` — add new routes
-   h. Update `DMList.tsx` + `DMView.tsx` — invite buttons
-   i. Install `qrcode` npm package for QR generation
+1. Create `useCustomAvatar` hook (`localStorage` read/write for base64 avatar per VOID ID)
+2. Update `VoidAvatar.tsx` to accept and render `customAvatarUrl` prop
+3. Update `ProfileSettings.tsx`: add bio field (localStorage), add photo upload with preview/crop to 200x200, wire `useCustomAvatar`
+4. Update `ProfileSetupModal.tsx`: add optional bio textarea
+5. Fix `DMList.tsx` New Message modal: fix `handleCreateDM` normalization bug, add cosmic handle search hint, improve UX with better placeholder and validation error
 
 ## UX Notes
-
-- Mining page should feel like entering a sacred vault — pulsing cosmic orb animation, dark nebula background, gold glowing text, no corporate feel
-- Invite flow must be dead-simple: one tap to copy, one tap to share on WhatsApp/Telegram — no forms, no complexity
-- Keyword pills in MessageInput should be selectable chips that glow when active (gold for Light Room, purple for Dark Room)
-- Keyword filter bar is a horizontal scroll row at top of chat — active filter pill glows, inactive ones are dimmed
-- Keep the "digital temple" feel throughout: every new element should feel like it belongs in the cosmic void aesthetic
-- Mobile-first layout for all new screens
+- Profile photo upload: circular crop, Camera icon overlay on hover, gold glow border
+- Bio field: dark textarea, 280 char counter (gold), "Describe your cosmic journey..." placeholder
+- New Message modal: clear label "Enter VOID ID or @CosmicHandle", cosmic handle search shows "Ask your contact to share their VOID ID from their profile page" helper text, inline error if format invalid
+- All cosmic dark theme: void black bg, gold accents, purple highlights
+- Mobile-first

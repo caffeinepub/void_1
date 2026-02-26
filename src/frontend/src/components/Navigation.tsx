@@ -5,15 +5,15 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
+import { useGetCallerUserProfile, useIsCallerAdmin } from '../hooks/useQueries';
 import { useVoidId } from '../hooks/useVoidId';
 import { useAvatar } from '../hooks/useAvatar';
-import { Sun, Moon, MessageSquare, User, LogOut, Menu, X, Zap, Share2 } from 'lucide-react';
+import { Sun, Moon, MessageSquare, User, LogOut, Menu, X, Zap, Share2, Crown } from 'lucide-react';
 import { useState } from 'react';
 import InviteModal from './InviteModal';
 
-// ─── Navigation items ─────────────────────────────────────────────────────────
-const NAV_ITEMS = [
+// ─── Base navigation items (always shown) ────────────────────────────────────
+const BASE_NAV_ITEMS = [
   { path: '/light-room', label: 'Light Room', icon: Sun, color: 'text-void-gold' },
   { path: '/dark-room', label: 'Dark Room', icon: Moon, color: 'text-void-purple' },
   { path: '/dms', label: 'Messages', icon: MessageSquare, color: 'text-white/70' },
@@ -21,18 +21,27 @@ const NAV_ITEMS = [
   { path: '/profile', label: 'Profile', icon: User, color: 'text-white/70' },
 ];
 
+// Admin-only nav item
+const CREATOR_NAV_ITEM = { path: '/creator', label: 'Creator', icon: Crown, color: 'text-void-gold' };
+
 export default function Navigation() {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const { clear } = useInternetIdentity();
   const queryClient = useQueryClient();
   const { data: userProfile } = useGetCallerUserProfile();
+  const { data: isAdmin } = useIsCallerAdmin();
   const voidId = useVoidId();
   const avatarUrl = useAvatar(voidId ?? '');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const currentPath = routerState.location.pathname;
+
+  // Build nav items: base items + admin-only creator portal
+  const NAV_ITEMS = isAdmin
+    ? [...BASE_NAV_ITEMS, CREATOR_NAV_ITEM]
+    : BASE_NAV_ITEMS;
 
   const handleLogout = async () => {
     await clear();
@@ -82,6 +91,7 @@ export default function Navigation() {
         <nav className="flex-1 p-4 space-y-1">
           {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
             const isActive = currentPath === path;
+            const isCreator = path === '/creator';
             return (
               <button
                 key={path}
@@ -90,11 +100,16 @@ export default function Navigation() {
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all ${
                   isActive
                     ? 'bg-void-gold/10 border-l-2 border-void-gold text-white'
+                    : isCreator
+                    ? 'text-void-gold/60 hover:text-void-gold hover:bg-void-gold/8 border-l-2 border-void-gold/20 hover:border-void-gold/50'
                     : 'text-white/50 hover:text-white/80 hover:bg-white/5 border-l-2 border-transparent'
                 }`}
               >
                 <Icon size={16} className={isActive ? 'text-void-gold' : color} />
                 <span className="tracking-wider">{label}</span>
+                {isCreator && !isActive && (
+                  <span className="ml-auto text-void-gold/30 text-xs">✦</span>
+                )}
               </button>
             );
           })}
@@ -159,17 +174,25 @@ export default function Navigation() {
           <nav className="p-4 space-y-1 flex-1">
             {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
               const isActive = currentPath === path;
+              const isCreator = path === '/creator';
               return (
                 <button
                   key={path}
                   type="button"
                   onClick={() => handleNav(path)}
                   className={`w-full flex items-center gap-3 px-4 py-4 text-sm transition-all ${
-                    isActive ? 'text-void-gold' : 'text-white/50'
+                    isActive
+                      ? 'text-void-gold'
+                      : isCreator
+                      ? 'text-void-gold/60'
+                      : 'text-white/50'
                   }`}
                 >
                   <Icon size={18} className={isActive ? 'text-void-gold' : color} />
                   <span className="tracking-wider text-base">{label}</span>
+                  {isCreator && !isActive && (
+                    <span className="ml-auto text-void-gold/30 text-xs">✦</span>
+                  )}
                 </button>
               );
             })}

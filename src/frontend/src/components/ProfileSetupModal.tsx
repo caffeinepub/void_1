@@ -5,17 +5,28 @@ import { useSaveCallerUserProfile } from '../hooks/useQueries';
 import { useEncryption } from '../hooks/useEncryption';
 import { useAvatar } from '../hooks/useAvatar';
 
+const BIO_MAX = 280;
+
 export default function ProfileSetupModal() {
   const { identity } = useInternetIdentity();
   const voidId = useVoidId();
   const { mutateAsync: saveProfile, isPending } = useSaveCallerUserProfile();
   const { isReady: encryptionReady } = useEncryption();
   const [cosmicHandle, setCosmicHandle] = useState('');
+  const [bio, setBio] = useState('');
   const avatarUrl = useAvatar(voidId ?? '');
 
   if (!identity || !voidId) return null;
 
   const handleSubmit = async () => {
+    // Save bio to localStorage before saving profile
+    if (bio.trim()) {
+      try {
+        localStorage.setItem(`void_bio_${voidId}`, bio.trim());
+      } catch {
+        // fail silently
+      }
+    }
     await saveProfile({
       voidId,
       cosmicHandle: cosmicHandle.trim() || undefined,
@@ -70,11 +81,15 @@ export default function ProfileSetupModal() {
         </div>
 
         {/* Optional cosmic handle */}
-        <div className="mb-6">
-          <label className="block text-void-gold/60 text-xs uppercase tracking-widest mb-2">
+        <div className="mb-5">
+          <label
+            htmlFor="setup-cosmic-handle"
+            className="block text-void-gold/60 text-xs uppercase tracking-widest mb-2"
+          >
             Cosmic Handle (optional)
           </label>
           <input
+            id="setup-cosmic-handle"
             type="text"
             value={cosmicHandle}
             onChange={(e) => setCosmicHandle(e.target.value)}
@@ -82,12 +97,34 @@ export default function ProfileSetupModal() {
             maxLength={32}
             className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
           />
-          <p className="text-white/30 text-xs mt-1">
-            Leave blank to remain fully anonymous
-          </p>
+          <p className="text-white/30 text-xs mt-1">Leave blank to remain fully anonymous</p>
+        </div>
+
+        {/* Optional bio */}
+        <div className="mb-6">
+          <label
+            htmlFor="setup-bio"
+            className="block text-void-gold/60 text-xs uppercase tracking-widest mb-2"
+          >
+            Bio (optional)
+          </label>
+          <div className="relative">
+            <textarea
+              id="setup-bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
+              placeholder="Describe your cosmic journey..."
+              rows={2}
+              className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors resize-none"
+            />
+            <span className="absolute bottom-2 right-3 text-white/25 text-xs font-mono">
+              {bio.length}/{BIO_MAX}
+            </span>
+          </div>
         </div>
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={isPending || !encryptionReady}
           className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50 disabled:cursor-not-allowed"

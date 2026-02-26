@@ -8,11 +8,19 @@ const OMNISM_PROMPTS = [
   'Which belief do you hold that you have never questioned?',
   'What does the void reveal when you stop filling it?',
   'Who are you when no one is watching?',
+  'Which of your beliefs were given to you, and which did you choose?',
+  'Where does illusion end and reality begin?',
+  'What would you do if there were no consequences and no reward?',
+  'What truth are you most afraid to share with the world?',
 ];
 
 function getDailyPrompt(): string {
-  const dayOfWeek = new Date().getDay();
-  return OMNISM_PROMPTS[dayOfWeek];
+  // Use day-of-year for better rotation across the full prompt set
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return OMNISM_PROMPTS[dayOfYear % OMNISM_PROMPTS.length];
 }
 
 export default function SplashScreen() {
@@ -89,6 +97,7 @@ export default function SplashScreen() {
 
         {/* Login Button */}
         <button
+          type="button"
           onClick={login}
           disabled={isLoggingIn}
           className="void-btn-primary w-full max-w-md py-4 text-sm tracking-[0.3em] uppercase font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
