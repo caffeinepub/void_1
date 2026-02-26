@@ -1,0 +1,20 @@
+{
+  "name": "VOID",
+  "short_name": "VOID",
+  "description": "The privacy-first cosmic sanctuary. Telegram + Reddit with E2EE.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0015",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/generated/void-logo.dim_256x256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "lang": "en"
+}

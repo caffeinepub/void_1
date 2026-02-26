@@ -1,0 +1,264 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0px;
+
+    /* VOID Color System — OKLCH */
+    --background: 0.08 0.015 280;
+    --foreground: 0.95 0.01 80;
+    --card: 0.1 0.02 280;
+    --card-foreground: 0.95 0.01 80;
+    --popover: 0.1 0.02 280;
+    --popover-foreground: 0.95 0.01 80;
+    --primary: 0.82 0.18 85;
+    --primary-foreground: 0.08 0.015 280;
+    --secondary: 0.15 0.04 280;
+    --secondary-foreground: 0.95 0.01 80;
+    --muted: 0.15 0.02 280;
+    --muted-foreground: 0.55 0.02 280;
+    --accent: 0.45 0.22 295;
+    --accent-foreground: 0.95 0.01 80;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.82 0.18 85 / 15%;
+    --input: 0.82 0.18 85 / 10%;
+    --ring: 0.82 0.18 85;
+    --chart-1: 0.82 0.18 85;
+    --chart-2: 0.45 0.22 295;
+    --chart-3: 0.6 0.15 280;
+    --chart-4: 0.7 0.12 85;
+    --chart-5: 0.55 0.18 295;
+    --sidebar: 0.06 0.015 280;
+    --sidebar-foreground: 0.95 0.01 80;
+    --sidebar-primary: 0.82 0.18 85;
+    --sidebar-primary-foreground: 0.08 0.015 280;
+    --sidebar-accent: 0.12 0.02 280;
+    --sidebar-accent-foreground: 0.95 0.01 80;
+    --sidebar-border: 0.82 0.18 85 / 10%;
+    --sidebar-ring: 0.82 0.18 85;
+  }
+
+  .dark {
+    --background: 0.08 0.015 280;
+    --foreground: 0.95 0.01 80;
+    --card: 0.1 0.02 280;
+    --card-foreground: 0.95 0.01 80;
+    --popover: 0.1 0.02 280;
+    --popover-foreground: 0.95 0.01 80;
+    --primary: 0.82 0.18 85;
+    --primary-foreground: 0.08 0.015 280;
+    --secondary: 0.15 0.04 280;
+    --secondary-foreground: 0.95 0.01 80;
+    --muted: 0.15 0.02 280;
+    --muted-foreground: 0.55 0.02 280;
+    --accent: 0.45 0.22 295;
+    --accent-foreground: 0.95 0.01 80;
+    --destructive: 0.704 0.191 22.216;
+    --destructive-foreground: 0.205 0 0;
+    --border: 0.82 0.18 85 / 15%;
+    --input: 0.82 0.18 85 / 10%;
+    --ring: 0.82 0.18 85;
+    --sidebar: 0.06 0.015 280;
+    --sidebar-foreground: 0.95 0.01 80;
+    --sidebar-primary: 0.82 0.18 85;
+    --sidebar-primary-foreground: 0.08 0.015 280;
+    --sidebar-accent: 0.12 0.02 280;
+    --sidebar-accent-foreground: 0.95 0.01 80;
+    --sidebar-border: 0.82 0.18 85 / 10%;
+    --sidebar-ring: 0.82 0.18 85;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.03) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.15);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.3);
+  }
+}
+
+@layer components {
+  /* ─── Void Background ─────────────────────────────────────────── */
+  .void-bg {
+    background-color: #000000;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.03) 0%, transparent 50%);
+  }
+
+  .nebula-bg {
+    background-color: #000000;
+    background-image: url('/assets/generated/nebula-tile.dim_512x512.png');
+    background-repeat: repeat;
+    background-size: 512px 512px;
+    background-blend-mode: overlay;
+  }
+
+  /* ─── Glow Text ───────────────────────────────────────────────── */
+  .void-glow-text {
+    color: #FFD700;
+    text-shadow:
+      0 0 10px rgba(255, 215, 0, 0.8),
+      0 0 20px rgba(255, 215, 0, 0.5),
+      0 0 40px rgba(255, 215, 0, 0.3),
+      0 0 80px rgba(255, 215, 0, 0.1);
+  }
+
+  /* ─── Buttons ─────────────────────────────────────────────────── */
+  .void-btn-primary {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.1));
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #FFD700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .void-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(218, 165, 32, 0.2));
+    border-color: rgba(255, 215, 0, 0.7);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+  }
+
+  .void-btn-send {
+    color: #FFD700;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .void-btn-send:hover:not(:disabled) {
+    color: #fff;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6));
+  }
+
+  .void-btn-icon {
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    color: rgba(255, 215, 0, 0.7);
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .void-btn-icon:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.5);
+    color: #FFD700;
+  }
+
+  /* ─── Room Cards ──────────────────────────────────────────────── */
+  .room-card-light {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(218, 165, 32, 0.04));
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    transition: all 0.3s ease;
+  }
+  .room-card-light:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.08));
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+  }
+
+  .room-card-dark {
+    background: linear-gradient(135deg, rgba(142, 45, 226, 0.08), rgba(74, 0, 255, 0.04));
+    border: 1px solid rgba(142, 45, 226, 0.2);
+    transition: all 0.3s ease;
+  }
+  .room-card-dark:hover {
+    background: linear-gradient(135deg, rgba(142, 45, 226, 0.15), rgba(74, 0, 255, 0.08));
+    border-color: rgba(142, 45, 226, 0.4);
+    box-shadow: 0 0 20px rgba(142, 45, 226, 0.1);
+  }
+}
+
+/* ─── Gold Dust Particle Animation ─────────────────────────────── */
+@keyframes goldDustFloat {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0);
+    opacity: 0;
+  }
+}
+
+.gold-dust-particle {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FFD700, #DAA520);
+  box-shadow: 0 0 6px 2px rgba(255, 215, 0, 0.5);
+  pointer-events: none;
+  z-index: 9999;
+  animation: goldDustFloat 0.9s ease-out forwards;
+}
+
+/* ─── Nebula Fade-in ────────────────────────────────────────────── */
+@keyframes nebulaFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nebula-fade-in {
+  animation: nebulaFadeIn 0.4s ease-out forwards;
+}
+
+/* ─── Sacred Geometry Divider ───────────────────────────────────── */
+.sacred-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+}
+.sacred-divider::before {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 215, 0, 0.4);
+  font-size: 10px;
+  background: #000;
+  padding: 0 8px;
+}

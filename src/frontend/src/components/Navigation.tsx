@@ -1,0 +1,231 @@
+/**
+ * Navigation — Sidebar (desktop), drawer + bottom nav (mobile).
+ * Adds Mining nav item and Invite button.
+ */
+import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useQueryClient } from '@tanstack/react-query';
+import { useGetCallerUserProfile } from '../hooks/useQueries';
+import { useVoidId } from '../hooks/useVoidId';
+import { useAvatar } from '../hooks/useAvatar';
+import { Sun, Moon, MessageSquare, User, LogOut, Menu, X, Zap, Share2 } from 'lucide-react';
+import { useState } from 'react';
+import InviteModal from './InviteModal';
+
+// ─── Navigation items ─────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { path: '/light-room', label: 'Light Room', icon: Sun, color: 'text-void-gold' },
+  { path: '/dark-room', label: 'Dark Room', icon: Moon, color: 'text-void-purple' },
+  { path: '/dms', label: 'Messages', icon: MessageSquare, color: 'text-white/70' },
+  { path: '/mining', label: 'Mining', icon: Zap, color: 'text-void-gold' },
+  { path: '/profile', label: 'Profile', icon: User, color: 'text-white/70' },
+];
+
+export default function Navigation() {
+  const navigate = useNavigate();
+  const routerState = useRouterState();
+  const { clear } = useInternetIdentity();
+  const queryClient = useQueryClient();
+  const { data: userProfile } = useGetCallerUserProfile();
+  const voidId = useVoidId();
+  const avatarUrl = useAvatar(voidId ?? '');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  const currentPath = routerState.location.pathname;
+
+  const handleLogout = async () => {
+    await clear();
+    queryClient.clear();
+    navigate({ to: '/' });
+  };
+
+  const handleNav = (path: string) => {
+    navigate({ to: path });
+    setMobileOpen(false);
+  };
+
+  const displayName = userProfile?.cosmicHandle || voidId?.slice(0, 20) || 'Void Traveler';
+
+  return (
+    <>
+      {/* ── Desktop Sidebar ──────────────────────────────────────────────────── */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col bg-void-black/95 border-r border-void-gold/10 z-40">
+        {/* Logo */}
+        <div className="p-6 border-b border-void-gold/10">
+          <div className="flex items-center gap-3">
+            <img
+              src="/assets/generated/void-logo.dim_256x256.png"
+              alt="VOID"
+              className="w-8 h-8 drop-shadow-[0_0_8px_rgba(255,215,0,0.5)]"
+            />
+            <span className="void-glow-text text-xl font-black tracking-[0.3em]">VOID</span>
+          </div>
+        </div>
+
+        {/* User info */}
+        <div className="p-4 border-b border-void-gold/10">
+          <div className="flex items-center gap-3">
+            <img
+              src={avatarUrl}
+              alt="avatar"
+              className="w-10 h-10 rounded-full border border-void-gold/30"
+            />
+            <div className="min-w-0">
+              <div className="text-white/80 text-sm font-medium truncate">{displayName}</div>
+              <div className="text-white/30 text-xs truncate">{voidId}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 p-4 space-y-1">
+          {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
+            const isActive = currentPath === path;
+            return (
+              <button
+                key={path}
+                type="button"
+                onClick={() => handleNav(path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all ${
+                  isActive
+                    ? 'bg-void-gold/10 border-l-2 border-void-gold text-white'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/5 border-l-2 border-transparent'
+                }`}
+              >
+                <Icon size={16} className={isActive ? 'text-void-gold' : color} />
+                <span className="tracking-wider">{label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Invite button */}
+        <div className="px-4 pb-2">
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/40 hover:text-void-gold hover:bg-void-gold/5 transition-all border border-void-gold/10 hover:border-void-gold/30"
+          >
+            <Share2 size={16} className="text-void-gold/50" />
+            <span className="tracking-wider">Invite Friends</span>
+          </button>
+        </div>
+
+        {/* Logout */}
+        <div className="p-4 border-t border-void-gold/10">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/30 hover:text-red-400 transition-colors"
+          >
+            <LogOut size={16} />
+            <span className="tracking-wider">Exit Void</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Mobile Top Bar ───────────────────────────────────────────────────── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-void-black/95 border-b border-void-gold/10 flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <img
+            src="/assets/generated/void-logo.dim_256x256.png"
+            alt="VOID"
+            className="w-6 h-6 drop-shadow-[0_0_6px_rgba(255,215,0,0.5)]"
+          />
+          <span className="void-glow-text text-lg font-black tracking-[0.3em]">VOID</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-white/60 hover:text-white p-1"
+        >
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      {/* ── Mobile Drawer ────────────────────────────────────────────────────── */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 bg-void-black/95 pt-14 flex flex-col">
+          <div className="p-4 border-b border-void-gold/10">
+            <div className="flex items-center gap-3">
+              <img src={avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-void-gold/30" />
+              <div>
+                <div className="text-white/80 text-sm">{displayName}</div>
+                <div className="text-white/30 text-xs">{voidId}</div>
+              </div>
+            </div>
+          </div>
+          <nav className="p-4 space-y-1 flex-1">
+            {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
+              const isActive = currentPath === path;
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => handleNav(path)}
+                  className={`w-full flex items-center gap-3 px-4 py-4 text-sm transition-all ${
+                    isActive ? 'text-void-gold' : 'text-white/50'
+                  }`}
+                >
+                  <Icon size={18} className={isActive ? 'text-void-gold' : color} />
+                  <span className="tracking-wider text-base">{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Invite button in drawer */}
+          <div className="px-4 pb-2">
+            <button
+              type="button"
+              onClick={() => { setMobileOpen(false); setInviteOpen(true); }}
+              className="w-full flex items-center gap-3 px-4 py-4 text-sm text-void-gold/60 hover:text-void-gold transition-colors"
+            >
+              <Share2 size={18} className="text-void-gold/50" />
+              <span className="tracking-wider text-base">Invite Friends</span>
+            </button>
+          </div>
+
+          <div className="p-4 border-t border-void-gold/10">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-4 text-sm text-white/30 hover:text-red-400"
+            >
+              <LogOut size={18} />
+              <span className="tracking-wider text-base">Exit Void</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile Bottom Nav ─────────────────────────────────────────────────── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-void-black/95 border-t border-void-gold/10 flex">
+        {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+          const isActive = currentPath === path;
+          return (
+            <button
+              key={path}
+              type="button"
+              onClick={() => handleNav(path)}
+              className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs transition-colors ${
+                isActive ? 'text-void-gold' : 'text-white/30'
+              }`}
+            >
+              <Icon size={18} />
+              <span className="tracking-wide">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Invite Modal ─────────────────────────────────────────────────────── */}
+      <InviteModal
+        isOpen={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        voidId={voidId ?? ''}
+      />
+    </>
+  );
+}
