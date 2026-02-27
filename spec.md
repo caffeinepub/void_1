@@ -1,48 +1,48 @@
-# VOID
+# VOID – The Light & Dark Encrypted Wisdom Network
 
 ## Current State
-VOID is a privacy-first cosmic sanctuary app (Telegram + Reddit hybrid) on ICP. It has:
-- Internet Identity auth with auto-generated `@void_shadow_XXXXXXXX:canister` VOID IDs
-- Optional cosmic handles set once via ProfileSettings and ProfileSetupModal
-- ProfileSettings page with: avatar display, cosmic handle input, E2EE key info, logout
-- DMList page with a "New Message" modal that takes a plain text input requiring full VOID ID (`@void_shadow_xxxxxxxx:canister`) — this search is broken/non-functional
-- Backend has: `getCosmicHandle(voidId)`, `getAllUserProfiles()` (admin only), `searchUsers` and `lookupVoidIdByHandle` are NOT in the backend yet
-- UserProfile type: `{ voidId: string; cosmicHandle?: string }`
 
-**Known bugs:**
-- New Message modal search is non-functional — users must type full exact VOID ID which breaks DM creation
-- No cosmic handle search support
-- No profile bio field
-- No profile photo upload
+The app is a full-stack ICP (Motoko + React) PWA combining Telegram-style private messaging and Reddit-style public rooms. Core features exist:
+
+- Cosmic black/dark blue theme with gold dust particles, shooting stars, animated nebula background
+- Internet Identity auth, VOID ID generation (`@void_shadow_XXXX:canister`), optional cosmic handle
+- Light Room & Dark Room (threaded messages, keyword filter, upvotes)
+- 1-on-1 DM list and DM view
+- Creator Portal (admin: daily reflection, user management, pin messages)
+- Mining teaser page
+- Invite system with QR codes
+- Client-side E2EE via Web Crypto API (AES-GCM), keys in localStorage
+- Messages encrypted before sending; canister stores ciphertext blobs
+- 2.5s polling for near-real-time updates
+
+**Current bugs:**
+1. Light Room and Dark Room do not fill the device screen — the `flex-col h-full` container in `ChatView.tsx` is not properly constrained to the available viewport height, causing messages to overflow or the chat to appear collapsed/white on some devices.
+2. Messages appear as "🔒 Encrypted" or "🔒 Encrypted message" even for the sender — because each device generates its own AES-GCM key in `localStorage`, the sender's key is used to encrypt but upon page refresh or on another device (or even the same device after state reset), the `decryptedMap` state is empty and the fallback displays the "Encrypted" placeholder. The core issue: `decryptedMap` is populated only after `useEffect` runs after `isReady` becomes true, but during the loading window, the fallback shows. Also, newly posted messages are not immediately added to the local `decryptedMap` after send, so they flash "Encrypted" until the next poll returns.
+3. Chats not visible: the `decryptedMap` starts empty and the async decryption loop races against the render. If the key loads but messages are already in the query cache, the effect may fire before `isReady` is `true`, leaving all messages showing the encrypted fallback permanently.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **`useSearchUsers` hook** in `useQueries.ts`: client-side search that uses the existing `getAllUserProfiles()` call but stores results locally. Since `getAllUserProfiles` is admin-only, implement a local directory: maintain a localStorage cache of known users (populated as users are encountered in messages). For the New Message modal, search is done against: (a) exact/partial VOID ID match typed by the user, (b) cosmic handle lookup via existing `getCosmicHandle(voidId)`. The search input should support both formats.
-- **Smart search in New Message modal** (`DMList.tsx`): replace the plain input with a dual-mode search field. If the user types something starting with `@void_shadow_`, treat it as a direct VOID ID and allow opening the channel. If they type anything else (a name/handle), show a helper message: "Enter full VOID ID or ask your friend to share their VOID ID." Add a "Paste VOID ID" quick-action button. The key fix: the current input does not trim/format the VOID ID correctly before passing to `createDM` — fix the `handleCreateDM` function to normalize the input (trim whitespace, handle if user typed with or without leading `@`).
-- **Profile Bio field** in `ProfileSettings.tsx` and `ProfileSetupModal.tsx`: add a textarea for bio (max 280 chars), persisted as part of UserProfile via `saveCallerUserProfile`. Store bio in localStorage as `void_bio_{voidId}` since the backend UserProfile type only has `voidId` and `cosmicHandle` — bio is stored client-side only for MVP.
-- **Profile Photo upload** in `ProfileSettings.tsx`: add a circular photo upload button overlaid on the existing VoidAvatar. On click, open a file picker (images only, max 2MB). On selection, compress/resize to 200x200 and store as base64 in localStorage as `void_avatar_{voidId}`. Display the custom photo in place of the generated VoidAvatar wherever the user's own avatar appears. Create a `useCustomAvatar` hook that reads/writes from localStorage.
-- **`useCustomAvatar` hook** at `src/frontend/src/hooks/useCustomAvatar.ts`: reads custom avatar base64 from localStorage, provides `setAvatar(base64: string)` and `avatarUrl: string | null` — null means use generated VoidAvatar.
+- Immediate local decryption of sent messages (optimistic plaintext update to `decryptedMap` right after `encryptForSend` so the sender sees their own message text instantly without waiting for the poll round-trip)
+- `useLayoutEffect` or synchronous-on-ready decryption trigger to guarantee the decryption effect fires as soon as both `isReady === true` AND `messages.length > 0`
+- Full-height layout fix: the `main` element in `App.tsx` and the `ChatView` wrapper must use `h-[calc(100dvh-...)]` or proper flex constraints so the chat fills the screen on all device sizes (mobile 320px to 4K desktop)
+- Graceful empty state while decryption is in progress (show a subtle "Decrypting..." shimmer on each bubble instead of a static "🔒 Encrypted" icon)
+- Responsive improvements throughout: ensure no horizontal overflow, message bubbles cap at `max-w-[85%]` on mobile and `max-w-[70%]` on desktop, input bar always anchored to bottom
 
 ### Modify
-- `ProfileSettings.tsx`: Add bio textarea (280 char limit with counter), add profile photo upload circle (Camera icon overlay on avatar), show custom photo if set, save bio to localStorage on Save button click.
-- `ProfileSetupModal.tsx`: Add bio textarea step (optional, "Describe your cosmic journey..."), load/save bio from localStorage.
-- `DMList.tsx` `handleCreateDM`: Fix the core bug — normalize targetVoidId before passing to `createDM`. The input value must be the raw VOID ID portion that the backend expects. Add input validation with inline error message if the format looks wrong.
-- `VoidAvatar.tsx`: Accept an optional `customAvatarUrl` prop — if provided, render `<img>` instead of the SVG canvas avatar.
+- `ChatView.tsx`: fix `h-full` container so it respects the full available height; add a `decryptionReady` derived state that triggers immediate decryption of all loaded messages the moment `isReady` flips to `true`; ensure `decryptedMap` is seeded optimistically for sent messages
+- `MessageBubble.tsx`: replace static "🔒 Encrypted" text with an animated shimmer/pulse placeholder while `decryptedText === null` (decryption pending) vs a lock icon with "Encrypted" only when decryption definitively fails (returns `null` after key is ready)
+- `MessageInput.tsx` → `handleSend`: after sending, immediately update a shared/lifted `decryptedMap` or call a callback with `{ id: tempId, text }` so the sender sees their message instantly; use optimistic invalidation pattern
+- `App.tsx` `<main>`: change `min-h-screen` to `h-[calc(100dvh)]` with proper overflow handling; ensure `flex-col` fills remaining height after nav
 
 ### Remove
-- Nothing removed
+- Nothing removed — only fixes and improvements to existing components
 
 ## Implementation Plan
-1. Create `useCustomAvatar` hook (`localStorage` read/write for base64 avatar per VOID ID)
-2. Update `VoidAvatar.tsx` to accept and render `customAvatarUrl` prop
-3. Update `ProfileSettings.tsx`: add bio field (localStorage), add photo upload with preview/crop to 200x200, wire `useCustomAvatar`
-4. Update `ProfileSetupModal.tsx`: add optional bio textarea
-5. Fix `DMList.tsx` New Message modal: fix `handleCreateDM` normalization bug, add cosmic handle search hint, improve UX with better placeholder and validation error
 
-## UX Notes
-- Profile photo upload: circular crop, Camera icon overlay on hover, gold glow border
-- Bio field: dark textarea, 280 char counter (gold), "Describe your cosmic journey..." placeholder
-- New Message modal: clear label "Enter VOID ID or @CosmicHandle", cosmic handle search shows "Ask your contact to share their VOID ID from their profile page" helper text, inline error if format invalid
-- All cosmic dark theme: void black bg, gold accents, purple highlights
-- Mobile-first
+1. **Fix ChatView full-height layout** — change the outermost `div` from `flex flex-col h-full` to `flex flex-col h-full overflow-hidden` and ensure the messages scroll area uses `flex-1 min-h-0 overflow-y-auto` (the `min-h-0` on flex children is critical for flex overflow to work correctly in all browsers)
+2. **Fix App.tsx main layout** — change `<main>` to use `h-dvh md:h-screen` with `overflow-hidden` at the root and `flex-1 min-h-0 flex flex-col` on the main content area so ChatView gets a bounded height
+3. **Fix decryption race condition** — in `ChatView`, change the decryption `useEffect` dependency array to `[messages, isReady, decryptReceived]` and add an early return only when `!isReady` (current code already does this, but ensure the effect also re-fires when `isReady` changes from `false` to `true` while messages are already loaded)
+4. **Optimistic send decryption** — in `MessageInput.handleSend`, after computing `ciphertext = await encryptForSend(text)`, also compute a local preview: store `{ tempId, text }` in a parent-provided callback or a module-level store so `ChatView` can pre-populate `decryptedMap` before the server response arrives
+5. **MessageBubble decryption pending state** — show `<span className="animate-pulse text-white/30 text-sm">Decrypting...</span>` when `decryptedText === null && isDecryptionReady` and `🔒 Encrypted` only as a definitive failure state
+6. **Responsive fixes** — audit all pages (LightRoom, DarkRoom, DMView, DMList, ProfileSettings, MiningPage, CreatorPortal) ensuring `w-full max-w-full overflow-x-hidden` and mobile-safe padding

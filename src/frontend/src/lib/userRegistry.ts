@@ -4,7 +4,7 @@
  * Used for cosmic handle search in DM creation modal.
  */
 
-const REGISTRY_KEY = 'void_known_users';
+const REGISTRY_KEY = "void_known_users";
 
 export interface KnownUser {
   voidId: string;
@@ -54,7 +54,7 @@ export function searchKnownUsers(query: string): KnownUser[] {
     .filter(
       (u) =>
         u.voidId.toLowerCase().includes(q) ||
-        (u.cosmicHandle && u.cosmicHandle.toLowerCase().includes(q))
+        u.cosmicHandle?.toLowerCase().includes(q),
     )
     .slice(0, 10);
 }

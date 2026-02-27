@@ -3,7 +3,7 @@
  * Reads/writes a custom avatar (base64 image) per VOID ID from localStorage.
  * Key: void_avatar_{voidId}
  */
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from "react";
 
 export function useCustomAvatar(voidId: string | null) {
   const storageKey = voidId ? `void_avatar_${voidId}` : null;
@@ -27,7 +27,7 @@ export function useCustomAvatar(voidId: string | null) {
         // localStorage quota exceeded — fail silently
       }
     },
-    [storageKey]
+    [storageKey],
   );
 
   const clearAvatar = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from 'react';
+import { memo, useEffect, useRef } from "react";
 
 // Generates a stable random number from a seed (so stars don't move on re-render)
 function seededRandom(seed: number): number {
@@ -8,12 +8,12 @@ function seededRandom(seed: number): number {
 
 interface Star {
   id: string;
-  x: number;       // % from left
-  y: number;       // % from top
-  size: number;    // px
+  x: number; // % from left
+  y: number; // % from top
+  size: number; // px
   opacity: number; // base opacity
   duration: number; // twinkle duration seconds
-  delay: number;    // animation delay seconds
+  delay: number; // animation delay seconds
   driftDuration: number;
 }
 
@@ -37,16 +37,16 @@ function StarDot({ star }: { star: Star }) {
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: `${star.x}%`,
         top: `${star.y}%`,
         width: `${star.size}px`,
         height: `${star.size}px`,
-        borderRadius: '50%',
-        backgroundColor: '#ffffff',
+        borderRadius: "50%",
+        backgroundColor: "#ffffff",
         opacity: star.opacity,
         animation: `starTwinkle ${star.duration}s ease-in-out infinite ${star.delay}s, starDrift ${star.driftDuration}s ease-in-out infinite ${star.delay * 0.5}s`,
-        willChange: 'opacity, transform',
+        willChange: "opacity, transform",
       }}
     />
   );
@@ -60,7 +60,7 @@ function ShootingStars() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     let width = window.innerWidth;
@@ -117,7 +117,7 @@ function ShootingStars() {
         const gx = s.x - Math.cos(s.angle) * s.len;
         const gy = s.y - Math.sin(s.angle) * s.len;
         const grad = ctx!.createLinearGradient(gx, gy, s.x, s.y);
-        grad.addColorStop(0, `rgba(255, 215, 0, 0)`);
+        grad.addColorStop(0, "rgba(255, 215, 0, 0)");
         grad.addColorStop(0.7, `rgba(255, 215, 0, ${alpha * 0.3})`);
         grad.addColorStop(1, `rgba(255, 255, 255, ${alpha})`);
 
@@ -131,7 +131,7 @@ function ShootingStars() {
         // Head glow
         const headGrad = ctx!.createRadialGradient(s.x, s.y, 0, s.x, s.y, 3);
         headGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-        headGrad.addColorStop(1, `rgba(255, 215, 0, 0)`);
+        headGrad.addColorStop(1, "rgba(255, 215, 0, 0)");
         ctx!.beginPath();
         ctx!.arc(s.x, s.y, 3, 0, Math.PI * 2);
         ctx!.fillStyle = headGrad;
@@ -153,11 +153,11 @@ function ShootingStars() {
         canvas.height = height;
       }
     }
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
       cancelAnimationFrame(animFrameRef.current);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
@@ -165,9 +165,9 @@ function ShootingStars() {
     <canvas
       ref={canvasRef}
       style={{
-        position: 'fixed',
+        position: "fixed",
         inset: 0,
-        pointerEvents: 'none',
+        pointerEvents: "none",
         zIndex: 0,
         opacity: 0.7,
       }}
@@ -188,9 +188,9 @@ const CosmicBackground = memo(function CosmicBackground() {
       {/* Hard black base — prevents any white flash */}
       <div
         style={{
-          position: 'fixed',
+          position: "fixed",
           inset: 0,
-          backgroundColor: '#000000',
+          backgroundColor: "#000000",
           zIndex: -2,
         }}
       />

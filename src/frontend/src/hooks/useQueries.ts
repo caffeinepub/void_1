@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useActor } from './useActor';
-import { type UserProfile, type Message, MessageType } from '../backend';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Message, MessageType, UserProfile } from "../backend";
+import { useActor } from "./useActor";
 
 // ─── User Profile ────────────────────────────────────────────────────────────
 
@@ -8,9 +8,9 @@ export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
 
   const query = useQuery<UserProfile | null>({
-    queryKey: ['currentUserProfile'],
+    queryKey: ["currentUserProfile"],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.getCallerUserProfile();
     },
     enabled: !!actor && !actorFetching,
@@ -30,11 +30,11 @@ export function useSaveCallerUserProfile() {
 
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       await actor.saveCallerUserProfile(profile);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
     },
   });
 }
@@ -44,12 +44,15 @@ export function useSetCosmicHandle() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ voidId, handle }: { voidId: string; handle: string }) => {
-      if (!actor) throw new Error('Actor not available');
+    mutationFn: async ({
+      voidId,
+      handle,
+    }: { voidId: string; handle: string }) => {
+      if (!actor) throw new Error("Actor not available");
       await actor.setCosmicHandle(voidId, handle);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
     },
   });
 }
@@ -60,7 +63,7 @@ export function useGetMessages(channel: string, enabled = true) {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<Message[]>({
-    queryKey: ['messages', channel],
+    queryKey: ["messages", channel],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getMessages(channel, BigInt(50));
@@ -84,7 +87,7 @@ export function useLoadOlderMessages() {
       start: number;
       count: number;
     }) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.loadOlderMessages(channel, BigInt(start), BigInt(count));
     },
   });
@@ -110,18 +113,20 @@ export function usePostMessage() {
       replyTo?: string;
       blobId?: string;
     }) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       await actor.postMessage(
         channel,
         ciphertext,
         senderVoidId,
         messageType,
         replyTo ?? null,
-        blobId ?? null
+        blobId ?? null,
       );
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.channel] });
+      queryClient.invalidateQueries({
+        queryKey: ["messages", variables.channel],
+      });
     },
   });
 }
@@ -132,7 +137,7 @@ export function useGetSortedDMs() {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery({
-    queryKey: ['sortedDMs'],
+    queryKey: ["sortedDMs"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getSortedDMs();
@@ -147,12 +152,15 @@ export function useCreateDM() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ voidId1, voidId2 }: { voidId1: string; voidId2: string }) => {
-      if (!actor) throw new Error('Actor not available');
+    mutationFn: async ({
+      voidId1,
+      voidId2,
+    }: { voidId1: string; voidId2: string }) => {
+      if (!actor) throw new Error("Actor not available");
       return actor.createDM(voidId1, voidId2);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sortedDMs'] });
+      queryClient.invalidateQueries({ queryKey: ["sortedDMs"] });
     },
   });
 }
@@ -161,7 +169,7 @@ export function useGetCosmicHandle(voidId: string) {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<string | null>({
-    queryKey: ['cosmicHandle', voidId],
+    queryKey: ["cosmicHandle", voidId],
     queryFn: async () => {
       if (!actor) return null;
       return actor.getCosmicHandle(voidId);
@@ -196,7 +204,7 @@ export function usePostMessageWithKeywords() {
       blobId?: string;
       keywords: string[];
     }) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       await actor.postMessageWithKeywords(
         channel,
         ciphertext,
@@ -204,11 +212,13 @@ export function usePostMessageWithKeywords() {
         messageType,
         replyTo ?? null,
         blobId ?? null,
-        keywords
+        keywords,
       );
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.channel] });
+      queryClient.invalidateQueries({
+        queryKey: ["messages", variables.channel],
+      });
     },
   });
 }
@@ -226,11 +236,13 @@ export function useUpvoteMessage() {
       channel: string;
       messageId: string;
     }) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       await actor.upvoteMessage(channel, messageId);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', variables.channel] });
+      queryClient.invalidateQueries({
+        queryKey: ["messages", variables.channel],
+      });
     },
   });
 }
@@ -240,7 +252,7 @@ export function useGetWisdomScore(voidId: string) {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<bigint>({
-    queryKey: ['wisdomScore', voidId],
+    queryKey: ["wisdomScore", voidId],
     queryFn: async () => {
       if (!actor) return BigInt(0);
       return actor.getWisdomScore(voidId);
@@ -256,7 +268,7 @@ export function useGenerateInviteToken() {
 
   return useMutation({
     mutationFn: async (voidId: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       return actor.generateInviteToken(voidId);
     },
   });
@@ -267,7 +279,7 @@ export function useResolveInviteToken(token: string) {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<string | null>({
-    queryKey: ['inviteToken', token],
+    queryKey: ["inviteToken", token],
     queryFn: async () => {
       if (!actor) return null;
       return actor.resolveInviteToken(token);
@@ -284,7 +296,7 @@ export function useGetDailyReflection() {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<string | null>({
-    queryKey: ['dailyReflection'],
+    queryKey: ["dailyReflection"],
     queryFn: async () => {
       if (!actor) return null;
       return actor.getDailyReflection();
@@ -301,11 +313,11 @@ export function useSetDailyReflection() {
 
   return useMutation({
     mutationFn: async (text: string) => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       await actor.setDailyReflection(text);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailyReflection'] });
+      queryClient.invalidateQueries({ queryKey: ["dailyReflection"] });
     },
   });
 }
@@ -314,8 +326,8 @@ export function useSetDailyReflection() {
 export function useGetAllUserProfiles() {
   const { actor, isFetching: actorFetching } = useActor();
 
-  return useQuery<import('../backend').UserProfile[]>({
-    queryKey: ['allUserProfiles'],
+  return useQuery<import("../backend").UserProfile[]>({
+    queryKey: ["allUserProfiles"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getAllUserProfiles();
@@ -330,7 +342,7 @@ export function useIsCallerAdmin() {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
+    queryKey: ["isCallerAdmin"],
     queryFn: async () => {
       if (!actor) return false;
       return actor.isCallerAdmin();
@@ -346,12 +358,17 @@ export function usePinMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ channel, messageId }: { channel: string; messageId: string }) => {
-      if (!actor) throw new Error('Actor not available');
+    mutationFn: async ({
+      channel,
+      messageId,
+    }: { channel: string; messageId: string }) => {
+      if (!actor) throw new Error("Actor not available");
       await actor.pinMessage(channel, messageId);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['pinnedMessage', variables.channel] });
+      queryClient.invalidateQueries({
+        queryKey: ["pinnedMessage", variables.channel],
+      });
     },
   });
 }
@@ -360,8 +377,8 @@ export function usePinMessage() {
 export function useGetPinnedMessage(channel: string) {
   const { actor, isFetching: actorFetching } = useActor();
 
-  return useQuery<import('../backend').Message | null>({
-    queryKey: ['pinnedMessage', channel],
+  return useQuery<import("../backend").Message | null>({
+    queryKey: ["pinnedMessage", channel],
     queryFn: async () => {
       if (!actor) return null;
       return actor.getPinnedMessage(channel);

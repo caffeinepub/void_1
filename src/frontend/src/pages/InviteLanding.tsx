@@ -2,29 +2,37 @@
  * InviteLanding — Landing page for /invite/:token
  * Resolves the invite token, shows VOID branding, allows login or DM creation.
  */
-import { useParams, useNavigate } from '@tanstack/react-router';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useResolveInviteToken, useCreateDM } from '../hooks/useQueries';
-import { useVoidId } from '../hooks/useVoidId';
-import { Loader2, LogIn, MessageSquare, Home } from 'lucide-react';
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { Home, Loader2, LogIn, MessageSquare } from "lucide-react";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useCreateDM, useResolveInviteToken } from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
 
 export default function InviteLanding() {
-  const { token } = useParams({ from: '/invite/$token' });
+  const { token } = useParams({ from: "/invite/$token" });
   const { identity, login, isLoggingIn } = useInternetIdentity();
   const isAuthenticated = !!identity;
   const voidId = useVoidId();
   const navigate = useNavigate();
 
-  const { data: partnerVoidId, isLoading: resolving } = useResolveInviteToken(token ?? '');
+  const { data: partnerVoidId, isLoading: resolving } = useResolveInviteToken(
+    token ?? "",
+  );
   const { mutateAsync: createDM, isPending: creatingDM } = useCreateDM();
 
   const handleStartConversation = async () => {
     if (!voidId || !partnerVoidId) return;
     try {
-      const channelId = await createDM({ voidId1: voidId, voidId2: partnerVoidId });
-      navigate({ to: '/dms/$channelId', params: { channelId: encodeURIComponent(channelId) } });
+      const channelId = await createDM({
+        voidId1: voidId,
+        voidId2: partnerVoidId,
+      });
+      navigate({
+        to: "/dms/$channelId",
+        params: { channelId: encodeURIComponent(channelId) },
+      });
     } catch (err) {
-      console.error('Failed to create DM', err);
+      console.error("Failed to create DM", err);
     }
   };
 
@@ -34,14 +42,20 @@ export default function InviteLanding() {
       <div className="void-bg min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 size={28} className="text-void-gold/60 animate-spin" />
-          <span className="text-white/30 text-sm font-mono">Opening the portal...</span>
+          <span className="text-white/30 text-sm font-mono">
+            Opening the portal...
+          </span>
         </div>
       </div>
     );
   }
 
   // ─── Invalid token ──────────────────────────────────────────────────────────
-  if (!resolving && (partnerVoidId === null || partnerVoidId === undefined) && isAuthenticated) {
+  if (
+    !resolving &&
+    (partnerVoidId === null || partnerVoidId === undefined) &&
+    isAuthenticated
+  ) {
     return (
       <div className="void-bg min-h-screen flex items-center justify-center px-4">
         <div className="max-w-sm w-full text-center nebula-fade-in">
@@ -54,7 +68,7 @@ export default function InviteLanding() {
           </p>
           <button
             type="button"
-            onClick={() => navigate({ to: '/light-room' })}
+            onClick={() => navigate({ to: "/light-room" })}
             className="void-btn-primary px-8 py-3 text-sm tracking-widest uppercase font-mono flex items-center gap-2 mx-auto"
           >
             <Home size={14} />
@@ -77,7 +91,9 @@ export default function InviteLanding() {
               alt="VOID"
               className="w-16 h-16 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]"
             />
-            <h1 className="void-glow-text text-5xl font-black tracking-[0.4em]">VOID</h1>
+            <h1 className="void-glow-text text-5xl font-black tracking-[0.4em]">
+              VOID
+            </h1>
           </div>
 
           {/* Tagline */}
@@ -97,8 +113,8 @@ export default function InviteLanding() {
           <div
             className="px-6 py-4 text-center"
             style={{
-              background: 'rgba(255,215,0,0.04)',
-              border: '1px solid rgba(255,215,0,0.15)',
+              background: "rgba(255,215,0,0.04)",
+              border: "1px solid rgba(255,215,0,0.15)",
             }}
           >
             <p className="text-void-gold/60 text-xs tracking-[0.15em] uppercase font-mono mb-2">
@@ -111,11 +127,17 @@ export default function InviteLanding() {
 
           {/* Feature pills */}
           <div className="flex flex-wrap justify-center gap-2">
-            {['🔒 E2EE', '👁️ Anonymous', '☀️ Light Room', '🌑 Dark Room', '💬 Private DMs'].map((pill) => (
+            {[
+              "🔒 E2EE",
+              "👁️ Anonymous",
+              "☀️ Light Room",
+              "🌑 Dark Room",
+              "💬 Private DMs",
+            ].map((pill) => (
               <span
                 key={pill}
                 className="px-3 py-1 text-xs font-mono text-white/30"
-                style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ border: "1px solid rgba(255,255,255,0.08)" }}
               >
                 {pill}
               </span>
@@ -129,14 +151,14 @@ export default function InviteLanding() {
               onClick={() => login()}
               disabled={isLoggingIn}
               className="void-btn-primary w-full max-w-xs py-4 text-sm tracking-[0.2em] uppercase font-mono flex items-center justify-center gap-3"
-              style={{ boxShadow: '0 0 30px rgba(255,215,0,0.12)' }}
+              style={{ boxShadow: "0 0 30px rgba(255,215,0,0.12)" }}
             >
               {isLoggingIn ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <LogIn size={16} />
               )}
-              {isLoggingIn ? 'Opening the void...' : 'Enter the Void'}
+              {isLoggingIn ? "Opening the void..." : "Enter the Void"}
             </button>
             <p className="text-white/20 text-xs font-mono">
               Powered by Internet Identity · No email required
@@ -156,14 +178,17 @@ export default function InviteLanding() {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
             style={{
-              background: 'radial-gradient(circle, rgba(255,215,0,0.2), rgba(142,45,226,0.15))',
-              border: '1px solid rgba(255,215,0,0.3)',
-              boxShadow: '0 0 20px rgba(255,215,0,0.15)',
+              background:
+                "radial-gradient(circle, rgba(255,215,0,0.2), rgba(142,45,226,0.15))",
+              border: "1px solid rgba(255,215,0,0.3)",
+              boxShadow: "0 0 20px rgba(255,215,0,0.15)",
             }}
           >
             <span className="text-2xl">✨</span>
           </div>
-          <h1 className="void-glow-text text-3xl font-black tracking-[0.3em]">CONNECTION</h1>
+          <h1 className="void-glow-text text-3xl font-black tracking-[0.3em]">
+            CONNECTION
+          </h1>
         </div>
 
         {/* Partner void ID */}
@@ -171,8 +196,8 @@ export default function InviteLanding() {
           <div
             className="px-5 py-4"
             style={{
-              background: 'rgba(255,215,0,0.04)',
-              border: '1px solid rgba(255,215,0,0.15)',
+              background: "rgba(255,215,0,0.04)",
+              border: "1px solid rgba(255,215,0,0.15)",
             }}
           >
             <p className="text-white/30 text-xs font-mono tracking-wider mb-2 uppercase">
@@ -185,7 +210,8 @@ export default function InviteLanding() {
         )}
 
         <p className="text-white/40 text-sm leading-relaxed">
-          A traveler in the void wishes to connect with you. Start a private, encrypted conversation.
+          A traveler in the void wishes to connect with you. Start a private,
+          encrypted conversation.
         </p>
 
         {/* Start Conversation CTA */}
@@ -194,20 +220,20 @@ export default function InviteLanding() {
           onClick={handleStartConversation}
           disabled={!partnerVoidId || creatingDM}
           className="void-btn-primary w-full py-4 text-sm tracking-[0.2em] uppercase font-mono flex items-center justify-center gap-3 disabled:opacity-50"
-          style={{ boxShadow: '0 0 30px rgba(255,215,0,0.12)' }}
+          style={{ boxShadow: "0 0 30px rgba(255,215,0,0.12)" }}
         >
           {creatingDM ? (
             <Loader2 size={16} className="animate-spin" />
           ) : (
             <MessageSquare size={16} />
           )}
-          {creatingDM ? 'Opening channel...' : 'Start Conversation'}
+          {creatingDM ? "Opening channel..." : "Start Conversation"}
         </button>
 
         {/* Back to home */}
         <button
           type="button"
-          onClick={() => navigate({ to: '/light-room' })}
+          onClick={() => navigate({ to: "/light-room" })}
           className="text-white/20 text-xs hover:text-white/40 transition-colors font-mono tracking-wider"
         >
           → Return to Light Room

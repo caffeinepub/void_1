@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useVoidId } from '../hooks/useVoidId';
-import { useSaveCallerUserProfile } from '../hooks/useQueries';
-import { useEncryption } from '../hooks/useEncryption';
-import { useAvatar } from '../hooks/useAvatar';
+import { useState } from "react";
+import { useAvatar } from "../hooks/useAvatar";
+import { useEncryption } from "../hooks/useEncryption";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useSaveCallerUserProfile } from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
 
 const BIO_MAX = 280;
 
@@ -12,9 +12,9 @@ export default function ProfileSetupModal() {
   const voidId = useVoidId();
   const { mutateAsync: saveProfile, isPending } = useSaveCallerUserProfile();
   const { isReady: encryptionReady } = useEncryption();
-  const [cosmicHandle, setCosmicHandle] = useState('');
-  const [bio, setBio] = useState('');
-  const avatarUrl = useAvatar(voidId ?? '');
+  const [cosmicHandle, setCosmicHandle] = useState("");
+  const [bio, setBio] = useState("");
+  const avatarUrl = useAvatar(voidId ?? "");
 
   if (!identity || !voidId) return null;
 
@@ -66,18 +66,24 @@ export default function ProfileSetupModal() {
               <span className="text-xs">✦</span>
             </div>
           </div>
-          <div className="text-void-gold/80 text-sm font-mono tracking-wider">{voidId}</div>
-          <div className="text-white/30 text-xs mt-1">Your permanent anonymous identity</div>
+          <div className="text-void-gold/80 text-sm font-mono tracking-wider">
+            {voidId}
+          </div>
+          <div className="text-white/30 text-xs mt-1">
+            Your permanent anonymous identity
+          </div>
         </div>
 
         {/* Encryption status */}
         <div className="mb-6 flex items-center gap-2 text-xs text-white/40">
           <span
             className={`w-2 h-2 rounded-full ${
-              encryptionReady ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+              encryptionReady ? "bg-green-500" : "bg-yellow-500 animate-pulse"
             }`}
           />
-          {encryptionReady ? 'E2EE keys generated' : 'Generating encryption keys...'}
+          {encryptionReady
+            ? "E2EE keys generated"
+            : "Generating encryption keys..."}
         </div>
 
         {/* Optional cosmic handle */}
@@ -97,7 +103,9 @@ export default function ProfileSetupModal() {
             maxLength={32}
             className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
           />
-          <p className="text-white/30 text-xs mt-1">Leave blank to remain fully anonymous</p>
+          <p className="text-white/30 text-xs mt-1">
+            Leave blank to remain fully anonymous
+          </p>
         </div>
 
         {/* Optional bio */}
@@ -135,7 +143,7 @@ export default function ProfileSetupModal() {
               Entering...
             </span>
           ) : (
-            'Enter the Void'
+            "Enter the Void"
           )}
         </button>
       </div>

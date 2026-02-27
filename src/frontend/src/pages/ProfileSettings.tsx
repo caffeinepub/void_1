@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { useGetCallerUserProfile, useSaveCallerUserProfile } from '../hooks/useQueries';
-import { useVoidId } from '../hooks/useVoidId';
-import { useCustomAvatar } from '../hooks/useCustomAvatar';
-import VoidAvatar from '../components/VoidAvatar';
-import { getKeyFingerprint } from '../lib/crypto';
-import { LogOut, Save, Shield, Key, Camera } from 'lucide-react';
-import { toast } from 'sonner';
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Camera, Key, LogOut, Save, Shield } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import VoidAvatar from "../components/VoidAvatar";
+import { useCustomAvatar } from "../hooks/useCustomAvatar";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import {
+  useGetCallerUserProfile,
+  useSaveCallerUserProfile,
+} from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
+import { getKeyFingerprint } from "../lib/crypto";
 
 const BIO_MAX = 280;
 
@@ -19,10 +22,14 @@ export default function ProfileSettings() {
   const { data: userProfile } = useGetCallerUserProfile();
   const { mutateAsync: saveProfile, isPending } = useSaveCallerUserProfile();
   const voidId = useVoidId();
-  const { avatarUrl: customAvatar, setAvatar } = useCustomAvatar(voidId ?? null);
+  const { avatarUrl: customAvatar, setAvatar } = useCustomAvatar(
+    voidId ?? null,
+  );
 
-  const [cosmicHandle, setCosmicHandle] = useState(userProfile?.cosmicHandle ?? '');
-  const [bio, setBio] = useState('');
+  const [cosmicHandle, setCosmicHandle] = useState(
+    userProfile?.cosmicHandle ?? "",
+  );
+  const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load bio from localStorage on mount
@@ -53,13 +60,15 @@ export default function ProfileSettings() {
       voidId,
       cosmicHandle: cosmicHandle.trim() || undefined,
     });
-    toast.success('Profile updated', { description: 'Your cosmic identity has been saved.' });
+    toast.success("Profile updated", {
+      description: "Your cosmic identity has been saved.",
+    });
   };
 
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
-    navigate({ to: '/' });
+    navigate({ to: "/" });
   };
 
   /** Compress/resize a File to ~200×200 and return as base64 data URL */
@@ -69,13 +78,13 @@ export default function ProfileSettings() {
       const url = URL.createObjectURL(file);
       img.onload = () => {
         const size = 200;
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (!ctx) {
           URL.revokeObjectURL(url);
-          reject(new Error('Canvas not available'));
+          reject(new Error("Canvas not available"));
           return;
         }
         // Cover-crop to square
@@ -86,11 +95,11 @@ export default function ProfileSettings() {
         const sy = (img.height - sh) / 2;
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
         URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error('Image load failed'));
+        reject(new Error("Image load failed"));
       };
       img.src = url;
     });
@@ -98,19 +107,19 @@ export default function ProfileSettings() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file.');
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
       return;
     }
     try {
       const base64 = await compressImage(file);
       setAvatar(base64);
-      toast.success('Avatar updated');
+      toast.success("Avatar updated");
     } catch {
-      toast.error('Could not process image. Please try another file.');
+      toast.error("Could not process image. Please try another file.");
     }
     // Reset file input so same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const keyFingerprint = getKeyFingerprint();
@@ -133,7 +142,7 @@ export default function ProfileSettings() {
             className="relative mb-4 group cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-void-gold/60"
           >
             <VoidAvatar
-              voidId={voidId ?? ''}
+              voidId={voidId ?? ""}
               size="lg"
               customAvatarUrl={customAvatar ?? undefined}
               className="w-20 h-20"
@@ -152,8 +161,12 @@ export default function ProfileSettings() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <div className="text-void-gold/80 font-mono text-sm tracking-wider mb-1">{voidId}</div>
-          <div className="text-white/30 text-xs">Tap avatar to change photo</div>
+          <div className="text-void-gold/80 font-mono text-sm tracking-wider mb-1">
+            {voidId}
+          </div>
+          <div className="text-white/30 text-xs">
+            Tap avatar to change photo
+          </div>
         </div>
 
         {/* Cosmic Handle */}
@@ -173,7 +186,9 @@ export default function ProfileSettings() {
             maxLength={32}
             className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
           />
-          <p className="text-white/30 text-xs mt-1">Optional persistent name visible to others</p>
+          <p className="text-white/30 text-xs mt-1">
+            Optional persistent name visible to others
+          </p>
         </div>
 
         {/* Bio */}
@@ -197,7 +212,9 @@ export default function ProfileSettings() {
               {bio.length}/{BIO_MAX}
             </span>
           </div>
-          <p className="text-white/30 text-xs mt-1">Stored locally · Never transmitted</p>
+          <p className="text-white/30 text-xs mt-1">
+            Stored locally · Never transmitted
+          </p>
         </div>
 
         <button
@@ -219,21 +236,27 @@ export default function ProfileSettings() {
           <div className="border border-void-gold/10 p-4">
             <div className="flex items-center gap-2 mb-2">
               <Shield size={14} className="text-void-gold/60" />
-              <span className="text-void-gold/60 text-xs uppercase tracking-widest">Privacy</span>
+              <span className="text-void-gold/60 text-xs uppercase tracking-widest">
+                Privacy
+              </span>
             </div>
             <p className="text-white/40 text-xs leading-relaxed">
-              All messages are encrypted client-side before reaching the canister. The server never
-              sees your plaintext.
+              All messages are encrypted client-side before reaching the
+              canister. The server never sees your plaintext.
             </p>
           </div>
 
           <div className="border border-void-gold/10 p-4">
             <div className="flex items-center gap-2 mb-2">
               <Key size={14} className="text-void-gold/60" />
-              <span className="text-void-gold/60 text-xs uppercase tracking-widest">E2EE Key</span>
+              <span className="text-void-gold/60 text-xs uppercase tracking-widest">
+                E2EE Key
+              </span>
             </div>
             <p className="text-white/40 text-xs font-mono">{keyFingerprint}</p>
-            <p className="text-white/30 text-xs mt-1">Stored locally · Never transmitted</p>
+            <p className="text-white/30 text-xs mt-1">
+              Stored locally · Never transmitted
+            </p>
           </div>
         </div>
 
@@ -250,10 +273,10 @@ export default function ProfileSettings() {
         {/* Footer */}
         <div className="mt-12 text-center">
           <p className="text-white/15 text-xs">
-            © {new Date().getFullYear()} VOID · Built with ♥ using{' '}
+            © {new Date().getFullYear()} VOID · Built with ♥ using{" "}
             <a
               href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(
-                window.location.hostname || 'void-app'
+                window.location.hostname || "void-app",
               )}`}
               target="_blank"
               rel="noopener noreferrer"

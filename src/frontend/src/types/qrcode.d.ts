@@ -1,5 +1,5 @@
 // Type shim for qrcode — used in InviteModal for QR code generation
-declare module 'qrcode' {
+declare module "qrcode" {
   interface QRCodeToDataURLOptions {
     width?: number;
     margin?: number;
@@ -7,11 +7,17 @@ declare module 'qrcode' {
       dark?: string;
       light?: string;
     };
-    errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
+    errorCorrectionLevel?: "L" | "M" | "Q" | "H";
   }
 
-  function toDataURL(text: string, options?: QRCodeToDataURLOptions): Promise<string>;
-  function toSvgString(text: string, options?: QRCodeToDataURLOptions): Promise<string>;
+  function toDataURL(
+    text: string,
+    options?: QRCodeToDataURLOptions,
+  ): Promise<string>;
+  function toSvgString(
+    text: string,
+    options?: QRCodeToDataURLOptions,
+  ): Promise<string>;
 
   const _default: {
     toDataURL: typeof toDataURL;

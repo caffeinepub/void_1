@@ -1,28 +1,59 @@
+import { useQueryClient } from "@tanstack/react-query";
 /**
  * Navigation — Sidebar (desktop), drawer + bottom nav (mobile).
  * Adds Mining nav item and Invite button.
  */
-import { useNavigate, useRouterState } from '@tanstack/react-router';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useQueryClient } from '@tanstack/react-query';
-import { useGetCallerUserProfile, useIsCallerAdmin } from '../hooks/useQueries';
-import { useVoidId } from '../hooks/useVoidId';
-import { useAvatar } from '../hooks/useAvatar';
-import { Sun, Moon, MessageSquare, User, LogOut, Menu, X, Zap, Share2, Crown } from 'lucide-react';
-import { useState } from 'react';
-import InviteModal from './InviteModal';
+import { useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+  Crown,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Moon,
+  Share2,
+  Sun,
+  User,
+  X,
+  Zap,
+} from "lucide-react";
+import { useState } from "react";
+import { useAvatar } from "../hooks/useAvatar";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useGetCallerUserProfile, useIsCallerAdmin } from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
+import InviteModal from "./InviteModal";
 
 // ─── Base navigation items (always shown) ────────────────────────────────────
 const BASE_NAV_ITEMS = [
-  { path: '/light-room', label: 'Light Room', icon: Sun, color: 'text-void-gold' },
-  { path: '/dark-room', label: 'Dark Room', icon: Moon, color: 'text-void-purple' },
-  { path: '/dms', label: 'Messages', icon: MessageSquare, color: 'text-white/70' },
-  { path: '/mining', label: 'Mining', icon: Zap, color: 'text-void-gold' },
-  { path: '/profile', label: 'Profile', icon: User, color: 'text-white/70' },
+  {
+    path: "/light-room",
+    label: "Light Room",
+    icon: Sun,
+    color: "text-void-gold",
+  },
+  {
+    path: "/dark-room",
+    label: "Dark Room",
+    icon: Moon,
+    color: "text-void-purple",
+  },
+  {
+    path: "/dms",
+    label: "Messages",
+    icon: MessageSquare,
+    color: "text-white/70",
+  },
+  { path: "/mining", label: "Mining", icon: Zap, color: "text-void-gold" },
+  { path: "/profile", label: "Profile", icon: User, color: "text-white/70" },
 ];
 
 // Admin-only nav item
-const CREATOR_NAV_ITEM = { path: '/creator', label: 'Creator', icon: Crown, color: 'text-void-gold' };
+const CREATOR_NAV_ITEM = {
+  path: "/creator",
+  label: "Creator",
+  icon: Crown,
+  color: "text-void-gold",
+};
 
 export default function Navigation() {
   const navigate = useNavigate();
@@ -32,7 +63,7 @@ export default function Navigation() {
   const { data: userProfile } = useGetCallerUserProfile();
   const { data: isAdmin } = useIsCallerAdmin();
   const voidId = useVoidId();
-  const avatarUrl = useAvatar(voidId ?? '');
+  const avatarUrl = useAvatar(voidId ?? "");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -46,7 +77,7 @@ export default function Navigation() {
   const handleLogout = async () => {
     await clear();
     queryClient.clear();
-    navigate({ to: '/' });
+    navigate({ to: "/" });
   };
 
   const handleNav = (path: string) => {
@@ -54,7 +85,8 @@ export default function Navigation() {
     setMobileOpen(false);
   };
 
-  const displayName = userProfile?.cosmicHandle || voidId?.slice(0, 20) || 'Void Traveler';
+  const displayName =
+    userProfile?.cosmicHandle || voidId?.slice(0, 20) || "Void Traveler";
 
   return (
     <>
@@ -68,7 +100,9 @@ export default function Navigation() {
               alt="VOID"
               className="w-8 h-8 drop-shadow-[0_0_8px_rgba(255,215,0,0.5)]"
             />
-            <span className="void-glow-text text-xl font-black tracking-[0.3em]">VOID</span>
+            <span className="void-glow-text text-xl font-black tracking-[0.3em]">
+              VOID
+            </span>
           </div>
         </div>
 
@@ -81,7 +115,9 @@ export default function Navigation() {
               className="w-10 h-10 rounded-full border border-void-gold/30"
             />
             <div className="min-w-0">
-              <div className="text-white/80 text-sm font-medium truncate">{displayName}</div>
+              <div className="text-white/80 text-sm font-medium truncate">
+                {displayName}
+              </div>
               <div className="text-white/30 text-xs truncate">{voidId}</div>
             </div>
           </div>
@@ -91,7 +127,7 @@ export default function Navigation() {
         <nav className="flex-1 p-4 space-y-1">
           {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
             const isActive = currentPath === path;
-            const isCreator = path === '/creator';
+            const isCreator = path === "/creator";
             return (
               <button
                 key={path}
@@ -99,13 +135,16 @@ export default function Navigation() {
                 onClick={() => handleNav(path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all ${
                   isActive
-                    ? 'bg-void-gold/10 border-l-2 border-void-gold text-white'
+                    ? "bg-void-gold/10 border-l-2 border-void-gold text-white"
                     : isCreator
-                    ? 'text-void-gold/60 hover:text-void-gold hover:bg-void-gold/8 border-l-2 border-void-gold/20 hover:border-void-gold/50'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5 border-l-2 border-transparent'
+                      ? "text-void-gold/60 hover:text-void-gold hover:bg-void-gold/8 border-l-2 border-void-gold/20 hover:border-void-gold/50"
+                      : "text-white/50 hover:text-white/80 hover:bg-white/5 border-l-2 border-transparent"
                 }`}
               >
-                <Icon size={16} className={isActive ? 'text-void-gold' : color} />
+                <Icon
+                  size={16}
+                  className={isActive ? "text-void-gold" : color}
+                />
                 <span className="tracking-wider">{label}</span>
                 {isCreator && !isActive && (
                   <span className="ml-auto text-void-gold/30 text-xs">✦</span>
@@ -148,7 +187,9 @@ export default function Navigation() {
             alt="VOID"
             className="w-6 h-6 drop-shadow-[0_0_6px_rgba(255,215,0,0.5)]"
           />
-          <span className="void-glow-text text-lg font-black tracking-[0.3em]">VOID</span>
+          <span className="void-glow-text text-lg font-black tracking-[0.3em]">
+            VOID
+          </span>
         </div>
         <button
           type="button"
@@ -164,7 +205,11 @@ export default function Navigation() {
         <div className="md:hidden fixed inset-0 z-50 bg-void-black/95 pt-14 flex flex-col">
           <div className="p-4 border-b border-void-gold/10">
             <div className="flex items-center gap-3">
-              <img src={avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-void-gold/30" />
+              <img
+                src={avatarUrl}
+                alt="avatar"
+                className="w-10 h-10 rounded-full border border-void-gold/30"
+              />
               <div>
                 <div className="text-white/80 text-sm">{displayName}</div>
                 <div className="text-white/30 text-xs">{voidId}</div>
@@ -174,7 +219,7 @@ export default function Navigation() {
           <nav className="p-4 space-y-1 flex-1">
             {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
               const isActive = currentPath === path;
-              const isCreator = path === '/creator';
+              const isCreator = path === "/creator";
               return (
                 <button
                   key={path}
@@ -182,13 +227,16 @@ export default function Navigation() {
                   onClick={() => handleNav(path)}
                   className={`w-full flex items-center gap-3 px-4 py-4 text-sm transition-all ${
                     isActive
-                      ? 'text-void-gold'
+                      ? "text-void-gold"
                       : isCreator
-                      ? 'text-void-gold/60'
-                      : 'text-white/50'
+                        ? "text-void-gold/60"
+                        : "text-white/50"
                   }`}
                 >
-                  <Icon size={18} className={isActive ? 'text-void-gold' : color} />
+                  <Icon
+                    size={18}
+                    className={isActive ? "text-void-gold" : color}
+                  />
                   <span className="tracking-wider text-base">{label}</span>
                   {isCreator && !isActive && (
                     <span className="ml-auto text-void-gold/30 text-xs">✦</span>
@@ -202,7 +250,10 @@ export default function Navigation() {
           <div className="px-4 pb-2">
             <button
               type="button"
-              onClick={() => { setMobileOpen(false); setInviteOpen(true); }}
+              onClick={() => {
+                setMobileOpen(false);
+                setInviteOpen(true);
+              }}
               className="w-full flex items-center gap-3 px-4 py-4 text-sm text-void-gold/60 hover:text-void-gold transition-colors"
             >
               <Share2 size={18} className="text-void-gold/50" />
@@ -234,7 +285,7 @@ export default function Navigation() {
               type="button"
               onClick={() => handleNav(path)}
               className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs transition-colors ${
-                isActive ? 'text-void-gold' : 'text-white/30'
+                isActive ? "text-void-gold" : "text-white/30"
               }`}
             >
               <Icon size={18} />
@@ -248,7 +299,7 @@ export default function Navigation() {
       <InviteModal
         isOpen={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        voidId={voidId ?? ''}
+        voidId={voidId ?? ""}
       />
     </>
   );

@@ -1,3 +1,9 @@
+import {
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  CornerDownRight,
+} from "lucide-react";
 /**
  * MessageBubble — Renders a single message with:
  * - Gold (Light Room) or purple (Dark Room) styling
@@ -5,21 +11,21 @@
  * - Upvote button with count
  * - Reply threading
  */
-import { useState } from 'react';
-import { type Message, MessageType } from '../backend';
-import VoidAvatar from './VoidAvatar';
-import ReplyInput from './ReplyInput';
-import { useGetCosmicHandle } from '../hooks/useQueries';
-import { CornerDownRight, ChevronDown, ChevronRight, ArrowUp } from 'lucide-react';
+import { useState } from "react";
+import { type Message, MessageType } from "../backend";
+import { useGetCosmicHandle } from "../hooks/useQueries";
+import ReplyInput from "./ReplyInput";
+import VoidAvatar from "./VoidAvatar";
 
 interface MessageBubbleProps {
   message: Message;
-  decryptedText: string | null;
-  channelType: 'lightRoom' | 'darkRoom' | 'dm';
+  /** undefined = pending shimmer, null = failed decrypt (locked), string = plaintext */
+  decryptedText: string | null | undefined;
+  channelType: "lightRoom" | "darkRoom" | "dm";
   channel: string;
   currentVoidId: string;
   replies?: Message[];
-  decryptedReplies?: Map<string, string | null>;
+  decryptedReplies?: Map<string, string | null | undefined>;
   depth?: number;
   onUpvote?: () => void;
 }
@@ -27,12 +33,12 @@ interface MessageBubbleProps {
 function formatTime(timestamp: bigint): string {
   const ms = Number(timestamp) / 1_000_000;
   const date = new Date(ms);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function SenderName({ voidId }: { voidId: string }) {
   const { data: handle } = useGetCosmicHandle(voidId);
-  const shortId = voidId.replace('@void_shadow_', '').replace(':canister', '');
+  const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
   return (
     <span className="text-xs font-medium opacity-70">
       {handle || `void_${shortId}`}
@@ -56,20 +62,16 @@ export default function MessageBubble({
   const [upvoteLocal, setUpvoteLocal] = useState(false);
 
   const isOwn = message.senderVoidId === currentVoidId;
-  const isLightRoom = channelType === 'lightRoom';
-  const isDarkRoom = channelType === 'darkRoom';
+  const isLightRoom = channelType === "lightRoom";
+  const isDarkRoom = channelType === "darkRoom";
 
   const bubbleClass = isOwn
     ? isLightRoom
-      ? 'bg-gradient-to-br from-void-gold/30 to-void-gold-dark/20 border border-void-gold/40 ml-auto'
+      ? "bg-gradient-to-br from-void-gold/30 to-void-gold-dark/20 border border-void-gold/40 ml-auto"
       : isDarkRoom
-      ? 'bg-gradient-to-br from-void-purple/30 to-void-purple-dark/20 border border-void-purple/40 ml-auto'
-      : 'bg-gradient-to-br from-void-gold/20 to-void-purple/20 border border-void-gold/30 ml-auto'
-    : 'bg-void-black/60 border border-white/10';
-
-  const displayText =
-    decryptedText ??
-    (message.messageType === MessageType.text ? '🔒 Encrypted message' : null);
+        ? "bg-gradient-to-br from-void-purple/30 to-void-purple-dark/20 border border-void-purple/40 ml-auto"
+        : "bg-gradient-to-br from-void-gold/20 to-void-purple/20 border border-void-gold/30 ml-auto"
+    : "bg-void-black/60 border border-white/10";
 
   const handleUpvote = () => {
     if (upvoteLocal) return; // optimistic single-tap guard
@@ -79,14 +81,26 @@ export default function MessageBubble({
 
   // Keyword pill color
   const kwColor = isLightRoom
-    ? { bg: 'rgba(255,215,0,0.1)', border: 'rgba(255,215,0,0.3)', text: 'rgba(255,215,0,0.7)' }
+    ? {
+        bg: "rgba(255,215,0,0.1)",
+        border: "rgba(255,215,0,0.3)",
+        text: "rgba(255,215,0,0.7)",
+      }
     : isDarkRoom
-    ? { bg: 'rgba(142,45,226,0.1)', border: 'rgba(142,45,226,0.3)', text: 'rgba(178,102,255,0.7)' }
-    : { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', text: 'rgba(255,255,255,0.4)' };
+      ? {
+          bg: "rgba(142,45,226,0.1)",
+          border: "rgba(142,45,226,0.3)",
+          text: "rgba(178,102,255,0.7)",
+        }
+      : {
+          bg: "rgba(255,255,255,0.05)",
+          border: "rgba(255,255,255,0.1)",
+          text: "rgba(255,255,255,0.4)",
+        };
 
   return (
-    <div className={`flex flex-col ${depth > 0 ? 'ml-8 mt-2' : 'mt-4'}`}>
-      <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex flex-col ${depth > 0 ? "ml-8 mt-2" : "mt-4"}`}>
+      <div className={`flex gap-3 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
         {/* Avatar */}
         {!isOwn && (
           <div className="shrink-0 mt-1">
@@ -95,7 +109,9 @@ export default function MessageBubble({
         )}
 
         {/* Bubble */}
-        <div className={`max-w-[85%] sm:max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+        <div
+          className={`max-w-[85%] sm:max-w-[75%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}
+        >
           {/* Sender name */}
           {!isOwn && (
             <div className="mb-1 px-1">
@@ -113,12 +129,26 @@ export default function MessageBubble({
 
             {/* Message content */}
             {message.messageType === MessageType.image && message.blobId ? (
-              <div className="text-white/60 text-sm italic">📷 Image (encrypted)</div>
+              <div className="text-white/60 text-sm italic">
+                📷 Image (encrypted)
+              </div>
             ) : message.messageType === MessageType.file && message.blobId ? (
-              <div className="text-white/60 text-sm italic">📎 File (encrypted)</div>
+              <div className="text-white/60 text-sm italic">
+                📎 File (encrypted)
+              </div>
+            ) : decryptedText === undefined ? (
+              /* Pending: shimmer while decrypting */
+              <span className="text-white/30 text-sm italic animate-pulse">
+                Decrypting...
+              </span>
+            ) : decryptedText === null ? (
+              /* Failed: foreign sender key — message is sealed to its author */
+              <span className="text-white/20 text-sm italic">
+                🔒 Sealed wisdom
+              </span>
             ) : (
               <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                {displayText || '🔒 Encrypted'}
+                {decryptedText}
               </p>
             )}
 
@@ -142,7 +172,9 @@ export default function MessageBubble({
             )}
 
             {/* Timestamp */}
-            <div className={`text-xs opacity-40 mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
+            <div
+              className={`text-xs opacity-40 mt-1 ${isOwn ? "text-right" : "text-left"}`}
+            >
               {formatTime(message.timestamp)}
             </div>
 
@@ -158,7 +190,9 @@ export default function MessageBubble({
           </div>
 
           {/* Upvote button — below the bubble */}
-          <div className={`flex items-center gap-1.5 mt-1.5 px-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
+          <div
+            className={`flex items-center gap-1.5 mt-1.5 px-1 ${isOwn ? "flex-row-reverse" : ""}`}
+          >
             <button
               type="button"
               onClick={handleUpvote}
@@ -173,18 +207,22 @@ export default function MessageBubble({
                 size={13}
                 style={{
                   color: upvoteLocal
-                    ? isLightRoom ? '#FFD700' : '#8e2de2'
-                    : 'rgba(255,255,255,0.2)',
-                  transition: 'color 0.2s ease',
+                    ? isLightRoom
+                      ? "#FFD700"
+                      : "#8e2de2"
+                    : "rgba(255,255,255,0.2)",
+                  transition: "color 0.2s ease",
                 }}
               />
               <span
                 className="text-xs font-mono"
                 style={{
                   color: upvoteLocal
-                    ? isLightRoom ? 'rgba(255,215,0,0.8)' : 'rgba(142,45,226,0.8)'
-                    : 'rgba(255,255,255,0.2)',
-                  transition: 'color 0.2s ease',
+                    ? isLightRoom
+                      ? "rgba(255,215,0,0.8)"
+                      : "rgba(142,45,226,0.8)"
+                    : "rgba(255,255,255,0.2)",
+                  transition: "color 0.2s ease",
                 }}
               >
                 {(Number(message.upvotes) + (upvoteLocal ? 1 : 0)).toString()}
@@ -196,10 +234,10 @@ export default function MessageBubble({
 
       {/* Reply input */}
       {showReplyInput && (
-        <div className={`mt-2 ${depth > 0 ? '' : 'ml-11'}`}>
+        <div className={`mt-2 ${depth > 0 ? "" : "ml-11"}`}>
           <ReplyInput
             parentMessageId={message.id}
-            parentText={displayText ?? ''}
+            parentText={typeof decryptedText === "string" ? decryptedText : ""}
             channel={channel}
             channelType={channelType}
             currentVoidId={currentVoidId}
@@ -210,14 +248,18 @@ export default function MessageBubble({
 
       {/* Nested replies */}
       {replies.length > 0 && (
-        <div className={`mt-1 ${depth > 0 ? '' : 'ml-11'}`}>
+        <div className={`mt-1 ${depth > 0 ? "" : "ml-11"}`}>
           <button
             type="button"
             onClick={() => setRepliesExpanded(!repliesExpanded)}
             className="flex items-center gap-1 text-xs text-white/30 hover:text-white/60 transition-colors mb-1"
           >
-            {repliesExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+            {repliesExpanded ? (
+              <ChevronDown size={12} />
+            ) : (
+              <ChevronRight size={12} />
+            )}
+            {replies.length} {replies.length === 1 ? "reply" : "replies"}
           </button>
           {repliesExpanded && (
             <div className="border-l border-void-gold/10 pl-3">
@@ -225,7 +267,7 @@ export default function MessageBubble({
                 <MessageBubble
                   key={reply.id}
                   message={reply}
-                  decryptedText={decryptedReplies?.get(reply.id) ?? null}
+                  decryptedText={decryptedReplies?.get(reply.id)}
                   channelType={channelType}
                   channel={channel}
                   currentVoidId={currentVoidId}

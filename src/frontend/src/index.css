@@ -1,4 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono-VariableFont_wght.woff2")
+    format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -85,13 +98,28 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: "Outfit", system-ui, sans-serif;
     background-color: #000000;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
+    background-image: radial-gradient(
+        ellipse at 20% 50%,
+        rgba(74, 0, 255, 0.12) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse at 80% 20%,
+        rgba(142, 45, 226, 0.09) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 80%,
+        rgba(255, 215, 0, 0.04) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 0%,
+        rgba(10, 0, 21, 0.8) 0%,
+        transparent 70%
+      );
     min-height: 100vh;
   }
 
@@ -115,27 +143,61 @@
   /* ─── Void Background ─────────────────────────────────────────── */
   .void-bg {
     background-color: #000000;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.12) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.09) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.8) 0%, transparent 70%);
+    background-image: radial-gradient(
+        ellipse at 20% 50%,
+        rgba(74, 0, 255, 0.12) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse at 80% 20%,
+        rgba(142, 45, 226, 0.09) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 80%,
+        rgba(255, 215, 0, 0.04) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 0%,
+        rgba(10, 0, 21, 0.8) 0%,
+        transparent 70%
+      );
   }
 
   /* ─── Page Background (full cosmic depth for individual pages) ── */
   .page-bg {
     background-color: #000000;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(74, 0, 255, 0.14) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(142, 45, 226, 0.11) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 0%, rgba(10, 0, 21, 0.9) 0%, transparent 70%),
-      radial-gradient(ellipse at 0% 100%, rgba(15, 0, 31, 0.6) 0%, transparent 50%);
+    background-image: radial-gradient(
+        ellipse at 20% 50%,
+        rgba(74, 0, 255, 0.14) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse at 80% 20%,
+        rgba(142, 45, 226, 0.11) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 80%,
+        rgba(255, 215, 0, 0.05) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 0%,
+        rgba(10, 0, 21, 0.9) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse at 0% 100%,
+        rgba(15, 0, 31, 0.6) 0%,
+        transparent 50%
+      );
   }
 
   .nebula-bg {
     background-color: #000000;
-    background-image: url('/assets/generated/nebula-tile.dim_512x512.png');
+    background-image: url("/assets/generated/nebula-tile.dim_512x512.png");
     background-repeat: repeat;
     background-size: 512px 512px;
     background-blend-mode: overlay;
@@ -143,19 +205,21 @@
 
   /* ─── Glow Text ───────────────────────────────────────────────── */
   .void-glow-text {
-    color: #FFD700;
-    text-shadow:
-      0 0 10px rgba(255, 215, 0, 0.8),
-      0 0 20px rgba(255, 215, 0, 0.5),
-      0 0 40px rgba(255, 215, 0, 0.3),
-      0 0 80px rgba(255, 215, 0, 0.1);
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px
+      rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3), 0 0 80px
+      rgba(255, 215, 0, 0.1);
   }
 
   /* ─── Buttons ─────────────────────────────────────────────────── */
   .void-btn-primary {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(255, 215, 0, 0.15),
+      rgba(218, 165, 32, 0.1)
+    );
     border: 1px solid rgba(255, 215, 0, 0.4);
-    color: #FFD700;
+    color: #ffd700;
     transition: all 0.2s ease;
     cursor: pointer;
     display: flex;
@@ -163,13 +227,17 @@
     justify-content: center;
   }
   .void-btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(218, 165, 32, 0.2));
+    background: linear-gradient(
+      135deg,
+      rgba(255, 215, 0, 0.25),
+      rgba(218, 165, 32, 0.2)
+    );
     border-color: rgba(255, 215, 0, 0.7);
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
   }
 
   .void-btn-send {
-    color: #FFD700;
+    color: #ffd700;
     transition: all 0.2s ease;
     cursor: pointer;
   }
@@ -192,28 +260,44 @@
   .void-btn-icon:hover {
     background: rgba(255, 215, 0, 0.15);
     border-color: rgba(255, 215, 0, 0.5);
-    color: #FFD700;
+    color: #ffd700;
   }
 
   /* ─── Room Cards ──────────────────────────────────────────────── */
   .room-card-light {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(218, 165, 32, 0.04));
+    background: linear-gradient(
+      135deg,
+      rgba(255, 215, 0, 0.08),
+      rgba(218, 165, 32, 0.04)
+    );
     border: 1px solid rgba(255, 215, 0, 0.2);
     transition: all 0.3s ease;
   }
   .room-card-light:hover {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(218, 165, 32, 0.08));
+    background: linear-gradient(
+      135deg,
+      rgba(255, 215, 0, 0.15),
+      rgba(218, 165, 32, 0.08)
+    );
     border-color: rgba(255, 215, 0, 0.4);
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
   }
 
   .room-card-dark {
-    background: linear-gradient(135deg, rgba(142, 45, 226, 0.08), rgba(74, 0, 255, 0.04));
+    background: linear-gradient(
+      135deg,
+      rgba(142, 45, 226, 0.08),
+      rgba(74, 0, 255, 0.04)
+    );
     border: 1px solid rgba(142, 45, 226, 0.2);
     transition: all 0.3s ease;
   }
   .room-card-dark:hover {
-    background: linear-gradient(135deg, rgba(142, 45, 226, 0.15), rgba(74, 0, 255, 0.08));
+    background: linear-gradient(
+      135deg,
+      rgba(142, 45, 226, 0.15),
+      rgba(74, 0, 255, 0.08)
+    );
     border-color: rgba(142, 45, 226, 0.4);
     box-shadow: 0 0 20px rgba(142, 45, 226, 0.1);
   }
@@ -236,7 +320,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: radial-gradient(circle, #FFD700, #DAA520);
+  background: radial-gradient(circle, #ffd700, #daa520);
   box-shadow: 0 0 6px 2px rgba(255, 215, 0, 0.5);
   pointer-events: none;
   z-index: 9999;
@@ -263,10 +347,15 @@
 .sacred-divider {
   position: relative;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 215, 0, 0.3),
+    transparent
+  );
 }
 .sacred-divider::before {
-  content: '✦';
+  content: "✦";
   position: absolute;
   left: 50%;
   top: 50%;

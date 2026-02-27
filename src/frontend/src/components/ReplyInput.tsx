@@ -1,15 +1,15 @@
-import { useState, useRef } from 'react';
-import { useEncryption } from '../hooks/useEncryption';
-import { usePostMessage } from '../hooks/useQueries';
-import { MessageType } from '../backend';
-import { triggerGoldDust } from '../lib/goldDustAnimation';
-import { Send, X } from 'lucide-react';
+import { Send, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { MessageType } from "../backend";
+import { useEncryption } from "../hooks/useEncryption";
+import { usePostMessage } from "../hooks/useQueries";
+import { triggerGoldDust } from "../lib/goldDustAnimation";
 
 interface ReplyInputProps {
   parentMessageId: string;
   parentText: string;
   channel: string;
-  channelType: 'lightRoom' | 'darkRoom' | 'dm';
+  channelType: "lightRoom" | "darkRoom" | "dm";
   currentVoidId: string;
   onClose: () => void;
 }
@@ -21,7 +21,7 @@ export default function ReplyInput({
   currentVoidId,
   onClose,
 }: ReplyInputProps) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const { encryptForSend, isReady } = useEncryption();
   const { mutateAsync: postMessage, isPending } = usePostMessage();
   const sendBtnRef = useRef<HTMLButtonElement>(null);
@@ -37,16 +37,16 @@ export default function ReplyInput({
       replyTo: parentMessageId,
     });
     if (sendBtnRef.current) triggerGoldDust(sendBtnRef.current);
-    setText('');
+    setText("");
     onClose();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-    if (e.key === 'Escape') onClose();
+    if (e.key === "Escape") onClose();
   };
 
   return (
@@ -56,10 +56,15 @@ export default function ReplyInput({
         <div className="flex items-center gap-2 text-xs text-white/30">
           <span>↩ Replying to:</span>
           <span className="italic text-white/50 truncate max-w-[200px]">
-            &ldquo;{parentText.slice(0, 60)}{parentText.length > 60 ? '...' : ''}&rdquo;
+            &ldquo;{parentText.slice(0, 60)}
+            {parentText.length > 60 ? "..." : ""}&rdquo;
           </span>
         </div>
-        <button onClick={onClose} className="text-white/30 hover:text-white/60 ml-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-white/30 hover:text-white/60 ml-2"
+        >
           <X size={12} />
         </button>
       </div>
@@ -71,10 +76,10 @@ export default function ReplyInput({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Write your reply..."
-          autoFocus
           className="flex-1 bg-transparent border-b border-void-gold/20 text-white/80 text-sm placeholder:text-white/20 focus:outline-none focus:border-void-gold/50 py-1 transition-colors"
         />
         <button
+          type="button"
           ref={sendBtnRef}
           onClick={handleSend}
           disabled={!text.trim() || isPending || !isReady}

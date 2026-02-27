@@ -1,15 +1,16 @@
+import { Check, Copy, Loader2, X } from "lucide-react";
 /**
  * InviteModal — Share a VOID invite link via QR code, WhatsApp, Telegram, or clipboard.
  * Generates an invite token via the backend when opened.
  * QR code is rendered via Google Charts API (no npm package needed).
  */
-import { useEffect, useState } from 'react';
-import { useGenerateInviteToken } from '../hooks/useQueries';
-import { X, Copy, Check, Loader2 } from 'lucide-react';
-import { SiWhatsapp, SiTelegram } from 'react-icons/si';
+import { useEffect, useState } from "react";
+import { SiTelegram, SiWhatsapp } from "react-icons/si";
+import { useGenerateInviteToken } from "../hooks/useQueries";
 
 // ─── Pre-filled invite message ────────────────────────────────────────────────
-const INVITE_MESSAGE = 'Join me in VOID – a private space for truth and wisdom.';
+const INVITE_MESSAGE =
+  "Join me in VOID – a private space for truth and wisdom.";
 
 /** Build a QR code image URL using the Google Charts API (no npm package needed). */
 function buildQrUrl(text: string, size = 160): string {
@@ -22,7 +23,11 @@ interface InviteModalProps {
   voidId: string;
 }
 
-export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProps) {
+export default function InviteModal({
+  isOpen,
+  onClose,
+  voidId,
+}: InviteModalProps) {
   const { mutateAsync: generateToken, isPending } = useGenerateInviteToken();
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -42,17 +47,19 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error('Failed to generate invite token', err);
-          setError('Could not generate invite link. Please try again.');
+          console.error("Failed to generate invite token", err);
+          setError("Could not generate invite link. Please try again.");
         }
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, voidId, generateToken]);
 
   if (!isOpen) return null;
 
-  const inviteUrl = token ? `${window.location.origin}/invite/${token}` : '';
+  const inviteUrl = token ? `${window.location.origin}/invite/${token}` : "";
 
   const handleCopy = async () => {
     if (!inviteUrl) return;
@@ -66,31 +73,39 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
 
   return (
     /* Backdrop */
-    <div
-      role="dialog"
+    <dialog
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm"
+      open
+      className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm border-0 p-0 max-w-none w-full h-full"
     >
       {/* Modal panel */}
       <div
         className="relative w-full max-w-sm mx-4 nebula-fade-in"
         style={{
-          background: 'linear-gradient(160deg, #0f001f 0%, #000000 100%)',
-          border: '1px solid rgba(255,215,0,0.3)',
-          boxShadow: '0 0 60px rgba(255,215,0,0.08), 0 0 120px rgba(142,45,226,0.05)',
+          background: "linear-gradient(160deg, #0f001f 0%, #000000 100%)",
+          border: "1px solid rgba(255,215,0,0.3)",
+          boxShadow:
+            "0 0 60px rgba(255,215,0,0.08), 0 0 120px rgba(142,45,226,0.05)",
         }}
       >
         {/* Gold top-line accent */}
         <div
           className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,215,0,0.6), transparent)' }}
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,215,0,0.6), transparent)",
+          }}
         />
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-void-gold/10">
           <div>
-            <h2 className="text-white font-bold tracking-wider">Invite to VOID</h2>
-            <p className="text-white/30 text-xs mt-0.5">Share a portal to the truth</p>
+            <h2 className="text-white font-bold tracking-wider">
+              Invite to VOID
+            </h2>
+            <p className="text-white/30 text-xs mt-0.5">
+              Share a portal to the truth
+            </p>
           </div>
           <button
             type="button"
@@ -117,7 +132,10 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
               <p className="text-red-400/70 text-sm">{error}</p>
               <button
                 type="button"
-                onClick={() => { setError(null); setToken(null); }}
+                onClick={() => {
+                  setError(null);
+                  setToken(null);
+                }}
                 className="mt-3 text-void-gold/60 text-xs hover:text-void-gold transition-colors"
               >
                 Try again
@@ -132,9 +150,9 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
               <div
                 className="p-3"
                 style={{
-                  background: '#000000',
-                  border: '1px solid rgba(255,215,0,0.2)',
-                  boxShadow: '0 0 20px rgba(255,215,0,0.08)',
+                  background: "#000000",
+                  border: "1px solid rgba(255,215,0,0.2)",
+                  boxShadow: "0 0 20px rgba(255,215,0,0.08)",
                 }}
               >
                 <img
@@ -153,7 +171,10 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
               <div className="w-full flex items-center gap-2">
                 <div
                   className="flex-1 min-w-0 px-3 py-2 text-xs font-mono text-void-gold/60 truncate"
-                  style={{ background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.15)' }}
+                  style={{
+                    background: "rgba(255,215,0,0.04)",
+                    border: "1px solid rgba(255,215,0,0.15)",
+                  }}
                 >
                   {inviteUrl}
                 </div>
@@ -163,7 +184,11 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
                   className="void-btn-icon shrink-0"
                   title="Copy link"
                 >
-                  {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
+                  {copied ? (
+                    <Check size={15} className="text-green-400" />
+                  ) : (
+                    <Copy size={15} />
+                  )}
                 </button>
               </div>
 
@@ -176,9 +201,9 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-mono tracking-wider transition-all"
                   style={{
-                    background: 'rgba(37,211,102,0.08)',
-                    border: '1px solid rgba(37,211,102,0.25)',
-                    color: 'rgba(37,211,102,0.8)',
+                    background: "rgba(37,211,102,0.08)",
+                    border: "1px solid rgba(37,211,102,0.25)",
+                    color: "rgba(37,211,102,0.8)",
                   }}
                 >
                   <SiWhatsapp size={14} />
@@ -192,9 +217,9 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-mono tracking-wider transition-all"
                   style={{
-                    background: 'rgba(0,136,204,0.08)',
-                    border: '1px solid rgba(0,136,204,0.25)',
-                    color: 'rgba(0,136,204,0.8)',
+                    background: "rgba(0,136,204,0.08)",
+                    border: "1px solid rgba(0,136,204,0.25)",
+                    color: "rgba(0,136,204,0.8)",
                   }}
                 >
                   <SiTelegram size={14} />
@@ -219,6 +244,6 @@ export default function InviteModal({ isOpen, onClose, voidId }: InviteModalProp
           </p>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

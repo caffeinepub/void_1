@@ -1,27 +1,40 @@
-import { useNavigate } from '@tanstack/react-router';
-import { useGetSortedDMs, useCreateDM, useGetCallerUserProfile } from '../hooks/useQueries';
-import { useVoidId } from '../hooks/useVoidId';
-import { useCustomAvatar } from '../hooks/useCustomAvatar';
-import VoidAvatar from '../components/VoidAvatar';
-import InviteModal from '../components/InviteModal';
-import { MessageSquare, Plus, X, Share2, Copy, Check, Search, AtSign } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { type ChannelType } from '../backend';
-import { searchKnownUsers, type KnownUser } from '../lib/userRegistry';
-import { toast } from 'sonner';
+import { useNavigate } from "@tanstack/react-router";
+import {
+  AtSign,
+  Check,
+  Copy,
+  MessageSquare,
+  Plus,
+  Search,
+  Share2,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import type { ChannelType } from "../backend";
+import InviteModal from "../components/InviteModal";
+import VoidAvatar from "../components/VoidAvatar";
+import { useCustomAvatar } from "../hooks/useCustomAvatar";
+import {
+  useCreateDM,
+  useGetCallerUserProfile,
+  useGetSortedDMs,
+} from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
+import { type KnownUser, searchKnownUsers } from "../lib/userRegistry";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getDMPartner(channelId: string, myVoidId: string): string {
   // Channel format: DM-voidId1_voidId2
-  const withoutPrefix = channelId.replace('DM-', '');
-  const parts = withoutPrefix.split('_');
+  const withoutPrefix = channelId.replace("DM-", "");
+  const parts = withoutPrefix.split("_");
   const partner = parts.find((p) => !myVoidId.includes(p));
   return partner ? `@void_shadow_${partner}:canister` : channelId;
 }
 
 function getChannelId(channel: ChannelType): string {
-  if (channel.__kind__ === 'dm') return channel.dm;
+  if (channel.__kind__ === "dm") return channel.dm;
   return channel.__kind__;
 }
 
@@ -31,7 +44,7 @@ function isValidVoidId(id: string): boolean {
 }
 
 // ─── Search mode types ────────────────────────────────────────────────────────
-type SearchTab = 'voidId' | 'handle';
+type SearchTab = "voidId" | "handle";
 
 // ─── NewDMModal component ─────────────────────────────────────────────────────
 interface NewDMModalProps {
@@ -42,16 +55,16 @@ interface NewDMModalProps {
 }
 
 function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
-  const [tab, setTab] = useState<SearchTab>('voidId');
-  const [voidIdInput, setVoidIdInput] = useState('');
-  const [handleInput, setHandleInput] = useState('');
+  const [tab, setTab] = useState<SearchTab>("voidId");
+  const [voidIdInput, setVoidIdInput] = useState("");
+  const [handleInput, setHandleInput] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<KnownUser[]>([]);
   const [copied, setCopied] = useState(false);
 
   // Search by handle as user types
   useEffect(() => {
-    if (tab !== 'handle') return;
+    if (tab !== "handle") return;
     if (!handleInput.trim()) {
       setSearchResults([]);
       return;
@@ -67,7 +80,7 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
     }
     if (!isValidVoidId(trimmed)) {
       setValidationError(
-        'Invalid VOID ID. Enter full ID like @void_shadow_abc12345:canister or just the short code.'
+        "Invalid VOID ID. Enter full ID like @void_shadow_abc12345:canister or just the short code.",
       );
       return;
     }
@@ -80,12 +93,15 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
   };
 
   const copyMyId = () => {
-    navigator.clipboard.writeText(voidId).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      toast.error('Could not copy to clipboard');
-    });
+    navigator.clipboard
+      .writeText(voidId)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        toast.error("Could not copy to clipboard");
+      });
   };
 
   return (
@@ -93,7 +109,9 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
       <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold tracking-wider">New Message</h2>
+          <h2 className="text-white font-semibold tracking-wider">
+            New Message
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -108,7 +126,9 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
         <div className="mb-5 p-3 bg-void-black/40 border border-void-gold/10">
           <div className="text-white/30 text-xs mb-1">Your VOID ID</div>
           <div className="flex items-center justify-between gap-2">
-            <div className="text-void-gold/70 text-xs font-mono truncate flex-1">{voidId}</div>
+            <div className="text-void-gold/70 text-xs font-mono truncate flex-1">
+              {voidId}
+            </div>
             <button
               type="button"
               onClick={copyMyId}
@@ -116,7 +136,7 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
               className="shrink-0 flex items-center gap-1 text-xs text-void-gold/50 hover:text-void-gold transition-colors"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? "Copied" : "Copy"}
             </button>
           </div>
         </div>
@@ -125,11 +145,14 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
         <div className="flex mb-5 border border-void-gold/15 rounded-sm overflow-hidden">
           <button
             type="button"
-            onClick={() => { setTab('voidId'); setValidationError(null); }}
+            onClick={() => {
+              setTab("voidId");
+              setValidationError(null);
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-              tab === 'voidId'
-                ? 'bg-void-gold/10 text-void-gold border-r border-void-gold/15'
-                : 'text-white/30 hover:text-white/60 border-r border-void-gold/10'
+              tab === "voidId"
+                ? "bg-void-gold/10 text-void-gold border-r border-void-gold/15"
+                : "text-white/30 hover:text-white/60 border-r border-void-gold/10"
             }`}
           >
             <AtSign size={12} />
@@ -137,11 +160,14 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
           </button>
           <button
             type="button"
-            onClick={() => { setTab('handle'); setValidationError(null); }}
+            onClick={() => {
+              setTab("handle");
+              setValidationError(null);
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-              tab === 'handle'
-                ? 'bg-void-gold/10 text-void-gold'
-                : 'text-white/30 hover:text-white/60'
+              tab === "handle"
+                ? "bg-void-gold/10 text-void-gold"
+                : "text-white/30 hover:text-white/60"
             }`}
           >
             <Search size={12} />
@@ -150,9 +176,12 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
         </div>
 
         {/* Tab: By VOID ID */}
-        {tab === 'voidId' && (
+        {tab === "voidId" && (
           <div>
-            <label htmlFor="dm-voidid-input" className="block text-white/40 text-xs mb-2">
+            <label
+              htmlFor="dm-voidid-input"
+              className="block text-white/40 text-xs mb-2"
+            >
               Enter VOID ID or short code
             </label>
             <input
@@ -163,12 +192,16 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
                 setVoidIdInput(e.target.value);
                 setValidationError(null);
               }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleVoidIdSubmit(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleVoidIdSubmit();
+              }}
               placeholder="@void_shadow_xxxxxxxx:canister or short code"
               className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm font-mono focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
             />
             {validationError && (
-              <p className="text-red-400/80 text-xs mb-3 leading-relaxed">{validationError}</p>
+              <p className="text-red-400/80 text-xs mb-3 leading-relaxed">
+                {validationError}
+              </p>
             )}
             <button
               type="button"
@@ -176,15 +209,18 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
               disabled={!voidIdInput.trim() || creating}
               className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50 mt-1"
             >
-              {creating ? 'Opening channel...' : 'Open Channel'}
+              {creating ? "Opening channel..." : "Open Channel"}
             </button>
           </div>
         )}
 
         {/* Tab: By Cosmic Handle */}
-        {tab === 'handle' && (
+        {tab === "handle" && (
           <div>
-            <label htmlFor="dm-handle-input" className="block text-white/40 text-xs mb-2">
+            <label
+              htmlFor="dm-handle-input"
+              className="block text-white/40 text-xs mb-2"
+            >
               Search cosmic handle
             </label>
             <input
@@ -199,7 +235,8 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
             {/* Results */}
             {handleInput.trim() && searchResults.length === 0 && (
               <p className="text-white/30 text-xs text-center py-4">
-                No travelers found with that handle. They must first appear in a shared room.
+                No travelers found with that handle. They must first appear in a
+                shared room.
               </p>
             )}
 
@@ -220,7 +257,9 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
                           {user.cosmicHandle}
                         </div>
                       )}
-                      <div className="text-white/40 text-xs font-mono truncate">{user.voidId}</div>
+                      <div className="text-white/40 text-xs font-mono truncate">
+                        {user.voidId}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -266,31 +305,39 @@ export default function DMList() {
   const handleCreateDM = async (targetVoidId: string) => {
     if (!voidId) return;
     if (targetVoidId === voidId) {
-      toast.error('You cannot open a channel with yourself.');
+      toast.error("You cannot open a channel with yourself.");
       return;
     }
     try {
-      const channelId = await createDM({ voidId1: voidId, voidId2: targetVoidId });
+      const channelId = await createDM({
+        voidId1: voidId,
+        voidId2: targetVoidId,
+      });
       if (!channelId) {
-        toast.error('Failed to create channel. Try again.');
+        toast.error("Failed to create channel. Try again.");
         return;
       }
       setShowNewDM(false);
-      navigate({ to: '/dms/$channelId', params: { channelId: encodeURIComponent(channelId) } });
+      navigate({
+        to: "/dms/$channelId",
+        params: { channelId: encodeURIComponent(channelId) },
+      });
     } catch (err) {
-      console.error('createDM error', err);
-      toast.error('Could not open channel. Check the VOID ID and try again.');
+      console.error("createDM error", err);
+      toast.error("Could not open channel. Check the VOID ID and try again.");
     }
   };
 
-  const dmChannels = dms.filter((d) => d.__kind__ === 'dm');
+  const dmChannels = dms.filter((d) => d.__kind__ === "dm");
 
   return (
     <div className="void-bg flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
         <div>
-          <h1 className="text-white font-bold tracking-wider text-lg">Messages</h1>
+          <h1 className="text-white font-bold tracking-wider text-lg">
+            Messages
+          </h1>
           <p className="text-white/30 text-xs">Private · E2EE</p>
         </div>
         <div className="flex items-center gap-2">
@@ -327,21 +374,25 @@ export default function DMList() {
       <InviteModal
         isOpen={inviteOpen}
         onClose={() => setInviteOpen(false)}
-        voidId={voidId ?? ''}
+        voidId={voidId ?? ""}
       />
 
       {/* DM list */}
       <div className="flex-1 overflow-y-auto">
         {isLoading && (
           <div className="flex justify-center py-8">
-            <div className="text-white/30 text-sm animate-pulse">Loading channels...</div>
+            <div className="text-white/30 text-sm animate-pulse">
+              Loading channels...
+            </div>
           </div>
         )}
 
         {!isLoading && dmChannels.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <MessageSquare size={40} className="text-white/10 mb-4" />
-            <p className="text-white/30 text-sm mb-2">No private channels yet.</p>
+            <p className="text-white/30 text-sm mb-2">
+              No private channels yet.
+            </p>
             <p className="text-white/20 text-xs">
               Start a conversation with another VOID ID.
             </p>
@@ -358,7 +409,7 @@ export default function DMList() {
               type="button"
               onClick={() =>
                 navigate({
-                  to: '/dms/$channelId',
+                  to: "/dms/$channelId",
                   params: { channelId: encodeURIComponent(channelId) },
                 })
               }
@@ -367,11 +418,17 @@ export default function DMList() {
               <VoidAvatar
                 voidId={partner}
                 size="md"
-                customAvatarUrl={isMe ? (myCustomAvatar ?? undefined) : undefined}
+                customAvatarUrl={
+                  isMe ? (myCustomAvatar ?? undefined) : undefined
+                }
               />
               <div className="flex-1 min-w-0">
-                <div className="text-white/80 text-sm font-medium truncate">{partner}</div>
-                <div className="text-white/30 text-xs">Private channel · E2EE</div>
+                <div className="text-white/80 text-sm font-medium truncate">
+                  {partner}
+                </div>
+                <div className="text-white/30 text-xs">
+                  Private channel · E2EE
+                </div>
               </div>
             </button>
           );

@@ -2,14 +2,14 @@
  * useEncryption — manages the E2EE lifecycle for VOID.
  * Loads or creates the user's AES-GCM key on mount.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from "react";
 import {
-  loadOrCreateKey,
-  encryptMessage,
+  decryptBytes,
   decryptMessage,
   encryptBytes,
-  decryptBytes,
-} from '../lib/crypto';
+  encryptMessage,
+  loadOrCreateKey,
+} from "../lib/crypto";
 
 export function useEncryption() {
   const [key, setKey] = useState<CryptoKey | null>(null);
@@ -24,10 +24,10 @@ export function useEncryption() {
 
   const encryptForSend = useCallback(
     async (plaintext: string): Promise<string> => {
-      if (!key) throw new Error('Encryption key not ready');
+      if (!key) throw new Error("Encryption key not ready");
       return encryptMessage(plaintext, key);
     },
-    [key]
+    [key],
   );
 
   const decryptReceived = useCallback(
@@ -35,15 +35,15 @@ export function useEncryption() {
       if (!key) return null;
       return decryptMessage(ciphertext, key);
     },
-    [key]
+    [key],
   );
 
   const encryptFile = useCallback(
     async (bytes: Uint8Array): Promise<string> => {
-      if (!key) throw new Error('Encryption key not ready');
+      if (!key) throw new Error("Encryption key not ready");
       return encryptBytes(bytes, key);
     },
-    [key]
+    [key],
   );
 
   const decryptFile = useCallback(
@@ -51,7 +51,7 @@ export function useEncryption() {
       if (!key) return null;
       return decryptBytes(ciphertext, key);
     },
-    [key]
+    [key],
   );
 
   return { isReady, encryptForSend, decryptReceived, encryptFile, decryptFile };

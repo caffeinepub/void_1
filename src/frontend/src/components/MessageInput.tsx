@@ -1,83 +1,147 @@
+import { Paperclip, Send, Smile, X } from "lucide-react";
 /**
  * MessageInput — Handles text/file input with optional keyword tagging for
  * Light Room and Dark Room channels.
  */
-import { useState, useRef, useCallback } from 'react';
-import { useEncryption } from '../hooks/useEncryption';
-import { usePostMessage, usePostMessageWithKeywords } from '../hooks/useQueries';
-import { MessageType } from '../backend';
-import { triggerGoldDust } from '../lib/goldDustAnimation';
-import { Send, Paperclip, Smile, X } from 'lucide-react';
+import { useCallback, useRef, useState } from "react";
+import { MessageType } from "../backend";
+import { useEncryption } from "../hooks/useEncryption";
+import {
+  usePostMessage,
+  usePostMessageWithKeywords,
+} from "../hooks/useQueries";
+import { triggerGoldDust } from "../lib/goldDustAnimation";
 
 // ─── Emoji set ────────────────────────────────────────────────────────────────
 const EMOJI_SET = [
-  '✨', '🌑', '☀️', '🌌', '💫', '🔮', '⚡', '🌊', '🔥', '❄️',
-  '🌙', '⭐', '💎', '🌸', '🦋', '🌿', '🕊️', '🌈', '💡', '🎭',
-  '🙏', '💜', '💛', '🖤', '🤍', '👁️', '∞', '☯️', '🌀', '🔯',
+  "✨",
+  "🌑",
+  "☀️",
+  "🌌",
+  "💫",
+  "🔮",
+  "⚡",
+  "🌊",
+  "🔥",
+  "❄️",
+  "🌙",
+  "⭐",
+  "💎",
+  "🌸",
+  "🦋",
+  "🌿",
+  "🕊️",
+  "🌈",
+  "💡",
+  "🎭",
+  "🙏",
+  "💜",
+  "💛",
+  "🖤",
+  "🤍",
+  "👁️",
+  "∞",
+  "☯️",
+  "🌀",
+  "🔯",
 ];
 
 // ─── Keywords per channel type ────────────────────────────────────────────────
-const KEYWORDS: Record<'lightRoom' | 'darkRoom', string[]> = {
-  lightRoom: ['truth', 'mindset', 'clarity', 'omnism', 'wisdom', 'consciousness', 'unity', 'love'],
-  darkRoom:  ['maya', 'illusion', 'matrix', 'shadow', 'ego', 'deception', 'deconstruction', 'fear'],
+const KEYWORDS: Record<"lightRoom" | "darkRoom", string[]> = {
+  lightRoom: [
+    "truth",
+    "mindset",
+    "clarity",
+    "omnism",
+    "wisdom",
+    "consciousness",
+    "unity",
+    "love",
+  ],
+  darkRoom: [
+    "maya",
+    "illusion",
+    "matrix",
+    "shadow",
+    "ego",
+    "deception",
+    "deconstruction",
+    "fear",
+  ],
 };
 
 interface MessageInputProps {
   channel: string;
-  channelType: 'lightRoom' | 'darkRoom' | 'dm';
+  channelType: "lightRoom" | "darkRoom" | "dm";
   currentVoidId: string;
+  /** Called immediately after encrypting, before server round-trip, so ChatView can show plaintext right away */
+  onSentPlaintext?: (ciphertext: string, plaintext: string) => void;
 }
 
-export default function MessageInput({ channel, channelType, currentVoidId }: MessageInputProps) {
-  const [text, setText] = useState('');
+export default function MessageInput({
+  channel,
+  channelType,
+  currentVoidId,
+  onSentPlaintext,
+}: MessageInputProps) {
+  const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
-  const [filePreview, setFilePreview] = useState<{ name: string; dataUrl: string; type: string } | null>(null);
+  const [filePreview, setFilePreview] = useState<{
+    name: string;
+    dataUrl: string;
+    type: string;
+  } | null>(null);
   const [fileBytes, setFileBytes] = useState<Uint8Array | null>(null);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const { encryptForSend, encryptFile, isReady } = useEncryption();
   const { mutateAsync: postMessage, isPending: postPending } = usePostMessage();
-  const { mutateAsync: postMessageWithKeywords, isPending: postKwPending } = usePostMessageWithKeywords();
+  const { mutateAsync: postMessageWithKeywords, isPending: postKwPending } =
+    usePostMessageWithKeywords();
   const isPending = postPending || postKwPending;
   const sendBtnRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Show keywords for public rooms only ─────────────────────────────────────
-  const showKeywords = channelType === 'lightRoom' || channelType === 'darkRoom';
+  const showKeywords =
+    channelType === "lightRoom" || channelType === "darkRoom";
   const keywords = showKeywords ? KEYWORDS[channelType] : [];
-  const isLightRoom = channelType === 'lightRoom';
+  const isLightRoom = channelType === "lightRoom";
 
   const toggleKeyword = (kw: string) => {
     setSelectedKeywords((prev) =>
-      prev.includes(kw) ? prev.filter((k) => k !== kw) : [...prev, kw]
+      prev.includes(kw) ? prev.filter((k) => k !== kw) : [...prev, kw],
     );
   };
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result;
-      if (typeof result === 'string') {
-        setFilePreview({ name: file.name, dataUrl: result, type: file.type });
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result;
+        if (typeof result === "string") {
+          setFilePreview({ name: file.name, dataUrl: result, type: file.type });
+        }
+      };
+      reader.readAsDataURL(file);
 
-    const bytesReader = new FileReader();
-    bytesReader.onload = (ev) => {
-      const buf = ev.target?.result;
-      if (buf instanceof ArrayBuffer) {
-        setFileBytes(new Uint8Array(buf));
-      }
-    };
-    bytesReader.readAsArrayBuffer(file);
-  }, []);
+      const bytesReader = new FileReader();
+      bytesReader.onload = (ev) => {
+        const buf = ev.target?.result;
+        if (buf instanceof ArrayBuffer) {
+          setFileBytes(new Uint8Array(buf));
+        }
+      };
+      bytesReader.readAsArrayBuffer(file);
+    },
+    [],
+  );
 
   const clearFile = () => {
     setFilePreview(null);
     setFileBytes(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSend = async () => {
@@ -86,7 +150,7 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
     try {
       if (filePreview && fileBytes) {
         const encryptedContent = await encryptFile(fileBytes);
-        const isImage = filePreview.type.startsWith('image/');
+        const isImage = filePreview.type.startsWith("image/");
         await postMessage({
           channel,
           ciphertext: encryptedContent,
@@ -95,7 +159,10 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
         });
         clearFile();
       } else if (text.trim()) {
-        const ciphertext = await encryptForSend(text.trim());
+        const plaintext = text.trim();
+        const ciphertext = await encryptForSend(plaintext);
+        // Register plaintext immediately so ChatView can display it before server round-trip
+        onSentPlaintext?.(ciphertext, plaintext);
         if (selectedKeywords.length > 0) {
           // Post with keywords
           await postMessageWithKeywords({
@@ -113,18 +180,18 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
             messageType: MessageType.text,
           });
         }
-        setText('');
+        setText("");
         setSelectedKeywords([]);
       }
 
       if (sendBtnRef.current) triggerGoldDust(sendBtnRef.current);
     } catch (err) {
-      console.error('Send failed:', err);
+      console.error("Send failed:", err);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -140,7 +207,7 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
       {/* File preview */}
       {filePreview && (
         <div className="px-4 pt-3 flex items-center gap-3">
-          {filePreview.type.startsWith('image/') ? (
+          {filePreview.type.startsWith("image/") ? (
             <img
               src={filePreview.dataUrl}
               alt="preview"
@@ -152,10 +219,18 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <div className="text-white/60 text-xs truncate">{filePreview.name}</div>
-            <div className="text-white/30 text-xs">Encrypted before sending</div>
+            <div className="text-white/60 text-xs truncate">
+              {filePreview.name}
+            </div>
+            <div className="text-white/30 text-xs">
+              Encrypted before sending
+            </div>
           </div>
-          <button type="button" onClick={clearFile} className="text-white/30 hover:text-white/60">
+          <button
+            type="button"
+            onClick={clearFile}
+            className="text-white/30 hover:text-white/60"
+          >
             <X size={16} />
           </button>
         </div>
@@ -175,24 +250,24 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
                 style={{
                   border: active
                     ? isLightRoom
-                      ? '1px solid rgba(255,215,0,0.7)'
-                      : '1px solid rgba(142,45,226,0.7)'
-                    : '1px solid rgba(255,255,255,0.1)',
+                      ? "1px solid rgba(255,215,0,0.7)"
+                      : "1px solid rgba(142,45,226,0.7)"
+                    : "1px solid rgba(255,255,255,0.1)",
                   background: active
                     ? isLightRoom
-                      ? 'rgba(255,215,0,0.12)'
-                      : 'rgba(142,45,226,0.12)'
-                    : 'rgba(255,255,255,0.03)',
+                      ? "rgba(255,215,0,0.12)"
+                      : "rgba(142,45,226,0.12)"
+                    : "rgba(255,255,255,0.03)",
                   color: active
                     ? isLightRoom
-                      ? 'rgba(255,215,0,0.9)'
-                      : 'rgba(178,102,255,0.9)'
-                    : 'rgba(255,255,255,0.25)',
+                      ? "rgba(255,215,0,0.9)"
+                      : "rgba(178,102,255,0.9)"
+                    : "rgba(255,255,255,0.25)",
                   boxShadow: active
                     ? isLightRoom
-                      ? '0 0 8px rgba(255,215,0,0.15)'
-                      : '0 0 8px rgba(142,45,226,0.15)'
-                    : 'none',
+                      ? "0 0 8px rgba(255,215,0,0.15)"
+                      : "0 0 8px rgba(142,45,226,0.15)"
+                    : "none",
                 }}
               >
                 #{kw}
@@ -224,7 +299,7 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
         <button
           type="button"
           onClick={() => setShowEmoji(!showEmoji)}
-          className={`text-white/30 hover:text-void-gold transition-colors pb-1 ${showEmoji ? 'text-void-gold' : ''}`}
+          className={`text-white/30 hover:text-void-gold transition-colors pb-1 ${showEmoji ? "text-void-gold" : ""}`}
         >
           <Smile size={18} />
         </button>
@@ -250,11 +325,13 @@ export default function MessageInput({ channel, channelType, currentVoidId }: Me
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isReady ? 'Speak your truth...' : 'Initializing encryption...'}
+          placeholder={
+            isReady ? "Speak your truth..." : "Initializing encryption..."
+          }
           disabled={!isReady}
           rows={1}
           className="flex-1 bg-transparent border-b border-void-gold/20 text-white/90 placeholder:text-white/20 text-sm focus:outline-none focus:border-void-gold/50 transition-colors resize-none py-1 max-h-24 overflow-y-auto"
-          style={{ lineHeight: '1.5' }}
+          style={{ lineHeight: "1.5" }}
         />
 
         {/* Send button */}

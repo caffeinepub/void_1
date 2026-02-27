@@ -22,14 +22,14 @@ function hashVoidId(voidId: string): number[] {
 }
 
 const COSMIC_COLORS = [
-  '#FFD700', // gold
-  '#DAA520', // dark gold
-  '#8e2de2', // purple
-  '#4a00ff', // deep purple
-  '#c084fc', // light purple
-  '#fbbf24', // amber
-  '#a78bfa', // violet
-  '#60a5fa', // blue
+  "#FFD700", // gold
+  "#DAA520", // dark gold
+  "#8e2de2", // purple
+  "#4a00ff", // deep purple
+  "#c084fc", // light purple
+  "#fbbf24", // amber
+  "#a78bfa", // violet
+  "#60a5fa", // blue
 ];
 
 export function generateAvatar(voidId: string): string {
@@ -75,7 +75,7 @@ export function generateAvatar(voidId: string): string {
     <circle cx="${cx}" cy="${cy}" r="${cx}" fill="url(#bg_${hashes[0]})"/>
     <circle cx="${cx}" cy="${cy}" r="${ring1R}" fill="none" stroke="${secondaryColor}" stroke-width="0.5" opacity="0.4"/>
     <circle cx="${cx}" cy="${cy}" r="${ring2R}" fill="none" stroke="${accentColor}" stroke-width="0.5" opacity="0.4"/>
-    <polygon points="${starPoints.join(' ')}" fill="${primaryColor}" opacity="0.85" filter="url(#glow_${hashes[0]})"/>
+    <polygon points="${starPoints.join(" ")}" fill="${primaryColor}" opacity="0.85" filter="url(#glow_${hashes[0]})"/>
     <circle cx="${cx}" cy="${cy}" r="4" fill="${accentColor}" opacity="0.9"/>
   </svg>`;
 

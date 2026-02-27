@@ -8,7 +8,7 @@ let styleInjected = false;
 function injectStyles() {
   if (styleInjected) return;
   styleInjected = true;
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = `
     @keyframes goldDustFloat {
       0% { transform: translate(0, 0) scale(1); opacity: 1; }
@@ -37,8 +37,8 @@ export function triggerGoldDust(element: HTMLElement) {
 
   const count = 12;
   for (let i = 0; i < count; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'gold-dust-particle';
+    const particle = document.createElement("div");
+    particle.className = "gold-dust-particle";
 
     const angle = (i / count) * 2 * Math.PI + Math.random() * 0.5;
     const distance = 30 + Math.random() * 50;
@@ -47,8 +47,8 @@ export function triggerGoldDust(element: HTMLElement) {
 
     particle.style.left = `${originX - 3}px`;
     particle.style.top = `${originY - 3}px`;
-    particle.style.setProperty('--dx', `${dx}px`);
-    particle.style.setProperty('--dy', `${dy}px`);
+    particle.style.setProperty("--dx", `${dx}px`);
+    particle.style.setProperty("--dy", `${dy}px`);
     particle.style.animationDelay = `${Math.random() * 0.15}s`;
 
     document.body.appendChild(particle);

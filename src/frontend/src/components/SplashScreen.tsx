@@ -1,17 +1,17 @@
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 const OMNISM_PROMPTS = [
-  'What truth have you been avoiding in the light?',
-  'Which illusion still comforts you in the dark?',
-  'Where does your silence speak louder than words?',
-  'What would you say if no one could judge you?',
-  'Which belief do you hold that you have never questioned?',
-  'What does the void reveal when you stop filling it?',
-  'Who are you when no one is watching?',
-  'Which of your beliefs were given to you, and which did you choose?',
-  'Where does illusion end and reality begin?',
-  'What would you do if there were no consequences and no reward?',
-  'What truth are you most afraid to share with the world?',
+  "What truth have you been avoiding in the light?",
+  "Which illusion still comforts you in the dark?",
+  "Where does your silence speak louder than words?",
+  "What would you say if no one could judge you?",
+  "Which belief do you hold that you have never questioned?",
+  "What does the void reveal when you stop filling it?",
+  "Who are you when no one is watching?",
+  "Which of your beliefs were given to you, and which did you choose?",
+  "Where does illusion end and reality begin?",
+  "What would you do if there were no consequences and no reward?",
+  "What truth are you most afraid to share with the world?",
 ];
 
 function getDailyPrompt(): string {
@@ -31,7 +31,10 @@ export default function SplashScreen() {
       {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/assets/generated/void-splash-bg.dim_1440x900.png')" }}
+        style={{
+          backgroundImage:
+            "url('/assets/generated/void-splash-bg.dim_1440x900.png')",
+        }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-void-black/60 via-void-deep/80 to-void-black/95" />
 
@@ -85,12 +88,16 @@ export default function SplashScreen() {
         <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-10">
           <div className="room-card-light p-4 text-center">
             <div className="text-2xl mb-2">☀️</div>
-            <div className="text-void-gold font-semibold text-sm tracking-wider">LIGHT ROOM</div>
+            <div className="text-void-gold font-semibold text-sm tracking-wider">
+              LIGHT ROOM
+            </div>
             <div className="text-white/40 text-xs mt-1">Wisdom & Truth</div>
           </div>
           <div className="room-card-dark p-4 text-center">
             <div className="text-2xl mb-2">🌑</div>
-            <div className="text-void-purple font-semibold text-sm tracking-wider">DARK ROOM</div>
+            <div className="text-void-purple font-semibold text-sm tracking-wider">
+              DARK ROOM
+            </div>
             <div className="text-white/40 text-xs mt-1">Illusion & Shadow</div>
           </div>
         </div>
@@ -108,7 +115,7 @@ export default function SplashScreen() {
               Entering the Void...
             </span>
           ) : (
-            'Enter the Void'
+            "Enter the Void"
           )}
         </button>
 
@@ -120,9 +127,9 @@ export default function SplashScreen() {
       {/* Footer */}
       <div className="relative z-10 mt-auto pb-6 text-center">
         <p className="text-white/20 text-xs">
-          © {new Date().getFullYear()} VOID · Built with ♥ using{' '}
+          © {new Date().getFullYear()} VOID · Built with ♥ using{" "}
           <a
-            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname || 'void-app')}`}
+            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname || "void-app")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-void-gold/40 hover:text-void-gold/70 transition-colors"

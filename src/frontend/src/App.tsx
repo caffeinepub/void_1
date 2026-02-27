@@ -1,22 +1,29 @@
-import { createRootRoute, createRoute, createRouter, RouterProvider, Outlet, useNavigate } from '@tanstack/react-router';
-import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { useGetCallerUserProfile } from './hooks/useQueries';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import SplashScreen from './components/SplashScreen';
-import ProfileSetupModal from './components/ProfileSetupModal';
-import Navigation from './components/Navigation';
-import CosmicBackground from './components/CosmicBackground';
-import OfflineIndicator from './components/OfflineIndicator';
-import LightRoom from './pages/LightRoom';
-import DarkRoom from './pages/DarkRoom';
-import DMList from './pages/DMList';
-import DMView from './pages/DMView';
-import ProfileSettings from './pages/ProfileSettings';
-import MiningPage from './pages/MiningPage';
-import InviteLanding from './pages/InviteLanding';
-import CreatorPortal from './pages/CreatorPortal';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from "@/components/ui/sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Outlet,
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useEffect } from "react";
+import CosmicBackground from "./components/CosmicBackground";
+import Navigation from "./components/Navigation";
+import OfflineIndicator from "./components/OfflineIndicator";
+import ProfileSetupModal from "./components/ProfileSetupModal";
+import SplashScreen from "./components/SplashScreen";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { useGetCallerUserProfile } from "./hooks/useQueries";
+import CreatorPortal from "./pages/CreatorPortal";
+import DMList from "./pages/DMList";
+import DMView from "./pages/DMView";
+import DarkRoom from "./pages/DarkRoom";
+import InviteLanding from "./pages/InviteLanding";
+import LightRoom from "./pages/LightRoom";
+import MiningPage from "./pages/MiningPage";
+import ProfileSettings from "./pages/ProfileSettings";
 
 // Root layout component
 function RootLayout() {
@@ -24,9 +31,14 @@ function RootLayout() {
   const queryClient = useQueryClient();
   const isAuthenticated = !!identity;
 
-  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+  const {
+    data: userProfile,
+    isLoading: profileLoading,
+    isFetched,
+  } = useGetCallerUserProfile();
 
-  const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
+  const showProfileSetup =
+    isAuthenticated && !profileLoading && isFetched && userProfile === null;
 
   // Clear query cache on logout
   useEffect(() => {
@@ -37,11 +49,18 @@ function RootLayout() {
 
   if (isInitializing) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000000' }}>
+      <div
+        className="relative min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "#000000" }}
+      >
         <CosmicBackground />
         <div className="relative z-10 text-center">
-          <div className="void-glow-text text-4xl font-bold tracking-widest mb-4">VOID</div>
-          <div className="text-void-gold/60 text-sm animate-pulse">Initializing the void...</div>
+          <div className="void-glow-text text-4xl font-bold tracking-widest mb-4">
+            VOID
+          </div>
+          <div className="text-void-gold/60 text-sm animate-pulse">
+            Initializing the void...
+          </div>
         </div>
       </div>
     );
@@ -49,7 +68,7 @@ function RootLayout() {
 
   if (!isAuthenticated) {
     return (
-      <div style={{ backgroundColor: '#000000', minHeight: '100vh' }}>
+      <div style={{ backgroundColor: "#000000", minHeight: "100vh" }}>
         <CosmicBackground />
         <OfflineIndicator />
         <SplashScreen />
@@ -58,13 +77,16 @@ function RootLayout() {
   }
 
   return (
-    <div style={{ backgroundColor: '#000000', minHeight: '100vh' }}>
+    <div
+      style={{ backgroundColor: "#000000" }}
+      className="h-dvh overflow-hidden flex flex-col"
+    >
       <CosmicBackground />
       <OfflineIndicator />
       {showProfileSetup && <ProfileSetupModal />}
-      <div className="relative z-10 min-h-screen flex">
+      <div className="relative z-10 flex flex-1 min-h-0">
         <Navigation />
-        <main className="flex-1 flex flex-col min-h-screen md:ml-64 pt-14 md:pt-0 pb-16 md:pb-0">
+        <main className="flex-1 flex flex-col min-h-0 md:ml-64 pt-14 md:pt-0 pb-16 md:pb-0 overflow-hidden">
           <Outlet />
         </main>
       </div>
@@ -80,7 +102,7 @@ function IndexRedirect() {
 
   useEffect(() => {
     if (identity) {
-      navigate({ to: '/light-room' });
+      navigate({ to: "/light-room" });
     }
   }, [identity, navigate]);
 
@@ -92,55 +114,55 @@ const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
+  path: "/",
   component: IndexRedirect,
 });
 
 const lightRoomRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/light-room',
+  path: "/light-room",
   component: LightRoom,
 });
 
 const darkRoomRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/dark-room',
+  path: "/dark-room",
   component: DarkRoom,
 });
 
 const dmListRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/dms',
+  path: "/dms",
   component: DMList,
 });
 
 const dmViewRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/dms/$channelId',
+  path: "/dms/$channelId",
   component: DMView,
 });
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/profile',
+  path: "/profile",
   component: ProfileSettings,
 });
 
 const miningRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/mining',
+  path: "/mining",
   component: MiningPage,
 });
 
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/invite/$token',
+  path: "/invite/$token",
   component: InviteLanding,
 });
 
 const creatorRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/creator',
+  path: "/creator",
   component: CreatorPortal,
 });
 
@@ -158,7 +180,7 @@ const routeTree = rootRoute.addChildren([
 
 const router = createRouter({ routeTree });
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
