@@ -224,8 +224,9 @@ export default function Navigation() {
       )}
 
       {/* ── Mobile Bottom Nav ─────────────────────────────────────────────────── */}
+      {/* Limit to BASE_NAV_ITEMS only (max 5); Creator is accessible via the drawer menu */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-void-black/95 border-t border-void-gold/10 flex">
-        {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+        {BASE_NAV_ITEMS.map(({ path, label, icon: Icon }) => {
           const isActive = currentPath === path;
           return (
             <button

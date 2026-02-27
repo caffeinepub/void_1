@@ -60,10 +60,14 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
   }, [handleInput, tab]);
 
   const handleVoidIdSubmit = async () => {
-    const trimmed = voidIdInput.trim();
+    let trimmed = voidIdInput.trim();
+    // Auto-complete shorthand hex ID to full VOID ID format
+    if (/^[a-zA-Z0-9]{6,16}$/.test(trimmed)) {
+      trimmed = `@void_shadow_${trimmed}:canister`;
+    }
     if (!isValidVoidId(trimmed)) {
       setValidationError(
-        'Invalid VOID ID format. Example: @void_shadow_abc12345:canister'
+        'Invalid VOID ID. Enter full ID like @void_shadow_abc12345:canister or just the short code.'
       );
       return;
     }
@@ -86,7 +90,7 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
-      <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm">
+      <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold tracking-wider">New Message</h2>
@@ -149,7 +153,7 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
         {tab === 'voidId' && (
           <div>
             <label htmlFor="dm-voidid-input" className="block text-white/40 text-xs mb-2">
-              Enter full VOID ID
+              Enter VOID ID or short code
             </label>
             <input
               id="dm-voidid-input"
@@ -160,7 +164,7 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
                 setValidationError(null);
               }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleVoidIdSubmit(); }}
-              placeholder="@void_shadow_xxxxxxxx:canister"
+              placeholder="@void_shadow_xxxxxxxx:canister or short code"
               className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm font-mono focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
             />
             {validationError && (
@@ -261,15 +265,28 @@ export default function DMList() {
 
   const handleCreateDM = async (targetVoidId: string) => {
     if (!voidId) return;
-    const channelId = await createDM({ voidId1: voidId, voidId2: targetVoidId });
-    setShowNewDM(false);
-    navigate({ to: '/dms/$channelId', params: { channelId: encodeURIComponent(channelId) } });
+    if (targetVoidId === voidId) {
+      toast.error('You cannot open a channel with yourself.');
+      return;
+    }
+    try {
+      const channelId = await createDM({ voidId1: voidId, voidId2: targetVoidId });
+      if (!channelId) {
+        toast.error('Failed to create channel. Try again.');
+        return;
+      }
+      setShowNewDM(false);
+      navigate({ to: '/dms/$channelId', params: { channelId: encodeURIComponent(channelId) } });
+    } catch (err) {
+      console.error('createDM error', err);
+      toast.error('Could not open channel. Check the VOID ID and try again.');
+    }
   };
 
   const dmChannels = dms.filter((d) => d.__kind__ === 'dm');
 
   return (
-    <div className="void-bg flex flex-col h-screen pt-14 md:pt-0 pb-16 md:pb-0">
+    <div className="void-bg flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
         <div>

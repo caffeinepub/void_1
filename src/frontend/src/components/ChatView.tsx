@@ -153,7 +153,7 @@ export default function ChatView({ channel, channelType, title }: ChatViewProps)
       : 'border-b border-white/10 bg-void-black/50';
 
   return (
-    <div className="flex flex-col h-screen md:h-screen pt-14 md:pt-0 pb-16 md:pb-0">
+    <div className="flex flex-col h-full">
       {/* Header */}
       <div className={`px-6 py-4 flex items-center gap-3 ${headerBg}`}>
         <div>

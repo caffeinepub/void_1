@@ -95,7 +95,7 @@ export default function MessageBubble({
         )}
 
         {/* Bubble */}
-        <div className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+        <div className={`max-w-[85%] sm:max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
           {/* Sender name */}
           {!isOwn && (
             <div className="mb-1 px-1">

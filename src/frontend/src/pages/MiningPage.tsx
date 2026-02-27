@@ -87,7 +87,7 @@ export default function MiningPage() {
   };
 
   return (
-    <div className="min-h-screen void-bg flex flex-col items-center justify-start pb-20 pt-16 md:pt-8 px-4 overflow-hidden relative">
+    <div className="min-h-full void-bg flex flex-col items-center justify-start pb-8 pt-8 px-4 overflow-hidden relative">
       {/* Background star field */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {STAR_POSITIONS.map((star) => (

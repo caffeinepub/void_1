@@ -116,7 +116,7 @@ export default function ProfileSettings() {
   const keyFingerprint = getKeyFingerprint();
 
   return (
-    <div className="void-bg flex flex-col min-h-screen pt-14 md:pt-0 pb-16 md:pb-0">
+    <div className="void-bg flex flex-col min-h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10">
         <h1 className="text-white font-bold tracking-wider text-lg">Profile</h1>

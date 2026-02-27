@@ -64,7 +64,7 @@ function RootLayout() {
       {showProfileSetup && <ProfileSetupModal />}
       <div className="relative z-10 min-h-screen flex">
         <Navigation />
-        <main className="flex-1 flex flex-col min-h-screen md:ml-64">
+        <main className="flex-1 flex flex-col min-h-screen md:ml-64 pt-14 md:pt-0 pb-16 md:pb-0">
           <Outlet />
         </main>
       </div>

@@ -31,7 +31,7 @@ const TABS: { id: PortalTab; label: string; icon: React.ReactNode }[] = [
 // ─── Not Authorized screen ────────────────────────────────────────────────────
 function NotAuthorized() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-center px-6">
+    <div className="flex flex-col items-center justify-center min-h-full text-center px-6 py-16">
       <XCircle size={48} className="text-red-500/40 mb-4" />
       <h2 className="text-white/60 text-lg font-bold tracking-wider mb-2">Access Denied</h2>
       <p className="text-white/30 text-sm max-w-xs leading-relaxed">
@@ -425,7 +425,7 @@ export default function CreatorPortal() {
   // Loading state while checking admin status
   if (checkingAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-full py-16">
         <div className="flex items-center gap-2 text-void-gold/50 text-sm animate-pulse">
           <Loader2 size={16} className="animate-spin" />
           Verifying creator credentials...
@@ -439,7 +439,7 @@ export default function CreatorPortal() {
   }
 
   return (
-    <div className="void-bg flex flex-col min-h-screen pt-14 md:pt-0 pb-16 md:pb-0">
+    <div className="void-bg flex flex-col min-h-full">
       {/* Page Header */}
       <div
         className="px-6 py-5 border-b"
