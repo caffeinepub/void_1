@@ -1,99 +1,242 @@
-import { Cpu, Lock, Star, TrendingUp, Zap } from "lucide-react";
 /**
- * MiningPage — Cosmic teaser for the future VOID Token mining feature.
- * Users can register interest. Mining is not yet active.
+ * MiningPage — Full crypto dashboard teaser for the future VOID Token.
+ * Shows tokenomics, proof-of-wisdom steps, user progress, and launch CTA.
  */
-import { useEffect, useState } from "react";
+import { Check, Lock, Share2, Zap } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useGetWisdomScore } from "../hooks/useQueries";
+import { useVoidId } from "../hooks/useVoidId";
 
-// ─── Animation constants ──────────────────────────────────────────────────────
-const PULSE_RING_COUNT = 4;
-
-// ─── Pre-computed pulse rings ─────────────────────────────────────────────────
-const PULSE_RINGS = Array.from({ length: PULSE_RING_COUNT }, (_, i) => ({
-  id: `ring-${i}`,
-  size: 120 + i * 40,
-  opacity: 0.6 - i * 0.12,
-  duration: 2 + i * 0.7,
-  delay: i * 0.4,
-}));
-
-// ─── Static star field (seeded deterministically — no Math.random on render) ─
-const STAR_POSITIONS = Array.from({ length: 40 }, (_, i) => ({
+// ─── Static star field ────────────────────────────────────────────────────────
+const STAR_POSITIONS = Array.from({ length: 50 }, (_, i) => ({
   id: `star-${i}`,
-  size: (i % 3) * 0.5 + 1.2,
+  size: (i % 3) * 0.6 + 1,
   left: (i * 37 + 13) % 100,
   top: (i * 53 + 7) % 100,
-  opacity: 0.1 + (i % 5) * 0.07,
-  duration: 2 + (i % 5) * 0.8,
-  delay: (i % 7) * 0.6,
+  opacity: 0.08 + (i % 5) * 0.06,
+  duration: 2.5 + (i % 5) * 0.8,
+  delay: (i % 7) * 0.5,
 }));
 
-// ─── Stat card data ───────────────────────────────────────────────────────────
-const STAT_CARDS = [
-  {
-    id: "tokens-earned",
-    iconType: "zap" as const,
-    label: "Tokens Earned",
-    value: "—",
-  },
-  {
-    id: "wisdom-multiplier",
-    iconType: "trending" as const,
-    label: "Wisdom Multiplier",
-    value: "×1",
-  },
-  {
-    id: "mining-rate",
-    iconType: "cpu" as const,
-    label: "Daily Mining Rate",
-    value: "—",
-  },
-];
+// ─── Animated Orb ────────────────────────────────────────────────────────────
+function CosmicOrb() {
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: 360, height: 360 }}
+    >
+      {/* Outer rings */}
+      {[320, 280, 240, 200].map((size, i) => (
+        <div
+          key={size}
+          className="absolute rounded-full border border-void-gold/10"
+          style={{
+            width: size,
+            height: size,
+            animation: `nebula-pulse ${3 + i * 0.6}s ease-in-out infinite`,
+            animationDelay: `${i * 0.4}s`,
+          }}
+        />
+      ))}
 
-function StatIcon({ type }: { type: "zap" | "trending" | "cpu" }) {
-  if (type === "zap") return <Zap size={20} />;
-  if (type === "trending") return <TrendingUp size={20} />;
-  return <Cpu size={20} />;
+      {/* Mid purple ring */}
+      <div
+        className="absolute rounded-full border border-void-purple/15"
+        style={{
+          width: 180,
+          height: 180,
+          animation: "nebula-pulse 2.5s ease-in-out infinite",
+          animationDelay: "0.3s",
+        }}
+      />
+
+      {/* Nebula glow halo */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 200,
+          height: 200,
+          background:
+            "radial-gradient(circle, rgba(255,215,0,0.18) 0%, rgba(142,45,226,0.12) 40%, transparent 70%)",
+          filter: "blur(24px)",
+          animation: "nebula-pulse 3s ease-in-out infinite",
+        }}
+      />
+
+      {/* Central orb */}
+      <div
+        className="relative rounded-full flex items-center justify-center z-10"
+        style={{
+          width: 140,
+          height: 140,
+          background:
+            "radial-gradient(circle at 38% 32%, rgba(255,215,0,0.45), rgba(142,45,226,0.28) 52%, rgba(74,0,255,0.18) 100%)",
+          boxShadow:
+            "0 0 50px rgba(255,215,0,0.25), 0 0 100px rgba(142,45,226,0.15), inset 0 0 40px rgba(255,215,0,0.08)",
+          border: "1px solid rgba(255,215,0,0.35)",
+          animation: "nebula-pulse 2.2s ease-in-out infinite",
+        }}
+      >
+        <span
+          className="font-black text-4xl"
+          style={{
+            color: "#FFD700",
+            textShadow:
+              "0 0 24px rgba(255,215,0,0.9), 0 0 50px rgba(255,215,0,0.4)",
+          }}
+        >
+          ₮
+        </span>
+      </div>
+
+      {/* Orbiting particles */}
+      <OrbitingParticle
+        radius={155}
+        speed={8}
+        color="#FFD700"
+        size={10}
+        startAngle={0}
+      />
+      <OrbitingParticle
+        radius={140}
+        speed={12}
+        color="#8e2de2"
+        size={7}
+        startAngle={120}
+      />
+      <OrbitingParticle
+        radius={165}
+        speed={15}
+        color="#FFD700"
+        size={5}
+        startAngle={240}
+      />
+    </div>
+  );
 }
 
-// ─── How mining works items ───────────────────────────────────────────────────
-const HOW_ITEMS = [
+function OrbitingParticle({
+  radius,
+  speed,
+  color,
+  size,
+  startAngle,
+}: {
+  radius: number;
+  speed: number;
+  color: string;
+  size: number;
+  startAngle: number;
+}) {
+  return (
+    <div
+      className="absolute rounded-full"
+      style={{
+        width: size,
+        height: size,
+        background: `radial-gradient(circle, ${color}, ${color}88)`,
+        boxShadow: `0 0 ${size * 1.5}px ${color}cc`,
+        animation: `orbit-${startAngle} ${speed}s linear infinite`,
+        transformOrigin: "center center",
+        // Fallback — orbit via CSS transform in keyframes
+        transform: `rotate(${startAngle}deg) translateX(${radius}px)`,
+        animationName: "none", // Driven by inline style + keyframe below
+      }}
+    >
+      <style>{`
+        @keyframes orbit-${startAngle}-${radius} {
+          from { transform: rotate(${startAngle}deg) translateX(${radius}px); }
+          to   { transform: rotate(${startAngle + 360}deg) translateX(${radius}px); }
+        }
+      `}</style>
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${color}, ${color}88)`,
+          boxShadow: `0 0 ${size * 1.5}px ${color}cc`,
+          animation: `orbit-${startAngle}-${radius} ${speed}s linear infinite`,
+          position: "absolute",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Tokenomics Cards ─────────────────────────────────────────────────────────
+const TOKENOMICS = [
   {
-    id: "light",
-    icon: "☀️",
-    text: "Post wisdom in Light Room → earn VOID tokens",
+    id: "supply",
+    icon: "₮",
+    label: "MAX SUPPLY",
+    value: "21,000,000",
+    sub: "VOID Tokens",
+    color: "void-gold",
   },
   {
-    id: "dark",
-    icon: "🌑",
-    text: "Deep shadow work in Dark Room → bonus multiplier",
+    id: "distribution",
+    icon: "◎",
+    label: "DISTRIBUTION",
+    value: "70 / 20 / 10",
+    sub: "Community / Dev / Reserve",
+    color: "void-purple",
   },
   {
-    id: "upvote",
-    icon: "⬆️",
-    text: "Receive upvotes → increase your Wisdom Score",
-  },
-  {
-    id: "diamond",
-    icon: "💎",
-    text: "High Wisdom Score → higher daily mining rate",
+    id: "launch",
+    icon: "🔒",
+    label: "LAUNCH",
+    value: "Phase 2",
+    sub: "Post-MVP · Coming Soon",
+    color: "white",
   },
 ];
 
+// ─── Proof-of-Wisdom Steps ────────────────────────────────────────────────────
+const STEPS = [
+  {
+    id: "post",
+    num: "01",
+    label: "Post Wisdom",
+    desc: "Share insights in Light Room",
+    active: true,
+  },
+  {
+    id: "earn",
+    num: "02",
+    label: "Earn Upvotes",
+    desc: "Community validates your truth",
+    active: true,
+  },
+  {
+    id: "score",
+    num: "03",
+    label: "Build Score",
+    desc: "Wisdom Score accumulates",
+    active: false,
+  },
+  {
+    id: "mine",
+    num: "04",
+    label: "Mine VOID",
+    desc: "Convert wisdom into tokens",
+    active: false,
+  },
+];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function MiningPage() {
+  const voidId = useVoidId();
+  const { data: wisdomScore } = useGetWisdomScore(voidId ?? "");
   const [notified, setNotified] = useState(() => {
     return localStorage.getItem("miningNotify") === "true";
   });
   const [justRegistered, setJustRegistered] = useState(false);
-  const [orbPhase, setOrbPhase] = useState(0);
 
-  // Animate orb phase for cosmic breathing effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOrbPhase((p) => (p + 1) % 360);
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
+  const score = wisdomScore ? Number(wisdomScore) : 0;
+  const miningThreshold = 1000;
+  const progressPct = Math.min((score / miningThreshold) * 100, 100);
 
   const handleNotify = () => {
     localStorage.setItem("miningNotify", "true");
@@ -102,9 +245,25 @@ export default function MiningPage() {
     setTimeout(() => setJustRegistered(false), 3000);
   };
 
+  const handleShare = () => {
+    const text = "Earn VOID tokens by sharing wisdom. Mining launches soon.";
+    if (navigator.share) {
+      navigator
+        .share({ title: "VOID Token", text, url: window.location.href })
+        .catch(() => {});
+    } else {
+      navigator.clipboard
+        .writeText(`${text} ${window.location.href}`)
+        .then(() => {
+          toast.success("Link copied to clipboard");
+        })
+        .catch(() => {});
+    }
+  };
+
   return (
-    <div className="min-h-full void-bg flex flex-col items-center justify-start pb-8 pt-8 px-4 overflow-hidden relative">
-      {/* Background star field */}
+    <div className="min-h-full void-bg flex flex-col items-center justify-start pb-16 pt-8 px-4 overflow-x-hidden relative">
+      {/* Background stars */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {STAR_POSITIONS.map((star) => (
           <div
@@ -121,194 +280,279 @@ export default function MiningPage() {
             }}
           />
         ))}
+        {/* Nebula blobs */}
+        <div
+          className="absolute"
+          style={{
+            top: "10%",
+            left: "60%",
+            width: 400,
+            height: 300,
+            background:
+              "radial-gradient(ellipse, rgba(142,45,226,0.06) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          className="absolute"
+          style={{
+            top: "50%",
+            left: "-10%",
+            width: 350,
+            height: 250,
+            background:
+              "radial-gradient(ellipse, rgba(255,215,0,0.05) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
       </div>
 
-      {/* Page header */}
-      <div className="relative z-10 text-center mb-10 nebula-fade-in">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-void-gold/20 bg-void-gold/5 mb-6">
-          <Zap size={12} className="text-void-gold" />
-          <span className="text-void-gold/60 text-xs tracking-[0.2em] uppercase font-mono">
-            Future Feature
+      {/* ── Status Badge ── */}
+      <div className="relative z-10 mb-6 nebula-fade-in">
+        <div
+          className="inline-flex items-center gap-2 px-5 py-2 border border-void-gold/30 bg-void-gold/8"
+          style={{ background: "rgba(255,215,0,0.06)" }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-void-gold animate-pulse" />
+          <span className="text-void-gold text-xs tracking-[0.25em] uppercase font-mono font-semibold">
+            Phase 2 · Coming Soon
           </span>
         </div>
+      </div>
 
-        <h1 className="void-glow-text text-5xl md:text-7xl font-black tracking-[0.3em] mb-3">
+      {/* ── Hero Title ── */}
+      <div className="relative z-10 text-center mb-10 nebula-fade-in">
+        <h1 className="void-glow-text text-6xl md:text-8xl font-black tracking-[0.25em] mb-3 leading-none">
           VOID TOKEN
         </h1>
-        <p className="text-white/50 text-base md:text-lg max-w-md mx-auto leading-relaxed">
-          Mine VOID tokens by sharing wisdom and staying present in Light &amp;
-          Dark rooms.
+        <p className="text-white/45 text-base md:text-lg font-mono tracking-[0.1em]">
+          The currency of wisdom
         </p>
       </div>
 
-      {/* Nebula Orb */}
-      <div
-        className="relative z-10 flex items-center justify-center mb-12"
-        style={{ width: 280, height: 280 }}
-      >
-        {/* Pulsing rings */}
-        {PULSE_RINGS.map((ring) => (
-          <div
-            key={ring.id}
-            className="absolute rounded-full border border-void-gold/20"
-            style={{
-              width: `${ring.size}px`,
-              height: `${ring.size}px`,
-              opacity: ring.opacity,
-              animation: `nebula-pulse ${ring.duration}s ease-in-out infinite`,
-              animationDelay: `${ring.delay}s`,
-            }}
-          />
-        ))}
-
-        {/* Inner nebula glow */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 160,
-            height: 160,
-            background:
-              "radial-gradient(circle, rgba(255,215,0,0.25) 0%, rgba(142,45,226,0.15) 40%, transparent 70%)",
-            filter: "blur(20px)",
-            animation: "nebula-pulse 3s ease-in-out infinite",
-          }}
-        />
-
-        {/* Central orb */}
-        <div
-          className="relative rounded-full flex items-center justify-center"
-          style={{
-            width: 120,
-            height: 120,
-            background:
-              "radial-gradient(circle at 40% 35%, rgba(255,215,0,0.4), rgba(142,45,226,0.3) 50%, rgba(74,0,255,0.2) 100%)",
-            boxShadow:
-              "0 0 40px rgba(255,215,0,0.3), 0 0 80px rgba(142,45,226,0.2), inset 0 0 30px rgba(255,215,0,0.1)",
-            border: "1px solid rgba(255,215,0,0.4)",
-            animation: "nebula-pulse 2s ease-in-out infinite",
-          }}
-        >
-          {/* Token symbol */}
-          <span
-            className="font-black text-3xl tracking-widest"
-            style={{
-              color: "#FFD700",
-              textShadow:
-                "0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.4)",
-              transform: `rotate(${Math.sin((orbPhase * Math.PI) / 180) * 3}deg)`,
-              transition: "transform 0.1s ease",
-            }}
-          >
-            ₮
-          </span>
-        </div>
-
-        {/* Orbiting star */}
-        <div
-          className="absolute w-3 h-3 rounded-full"
-          style={{
-            background: "radial-gradient(circle, #FFD700, #DAA520)",
-            boxShadow: "0 0 8px rgba(255,215,0,0.8)",
-            transform: `rotate(${orbPhase}deg) translateX(130px)`,
-            transformOrigin: "center center",
-          }}
-        />
-        <div
-          className="absolute w-2 h-2 rounded-full"
-          style={{
-            background: "radial-gradient(circle, #8e2de2, #4a00ff)",
-            boxShadow: "0 0 6px rgba(142,45,226,0.8)",
-            transform: `rotate(${orbPhase * 1.5 + 120}deg) translateX(110px)`,
-            transformOrigin: "center center",
-          }}
-        />
+      {/* ── Animated Orb ── */}
+      <div className="relative z-10 mb-10 flex items-center justify-center">
+        <CosmicOrb />
       </div>
 
-      {/* Locked stat cards */}
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mb-10 nebula-fade-in px-2">
-        {STAT_CARDS.map((card, idx) => (
-          <div
-            key={card.id}
-            className="relative border border-void-gold/10 bg-void-deep/60 backdrop-blur-sm p-5 flex flex-col items-center gap-3 group overflow-hidden"
-            style={{ animationDelay: `${idx * 0.1}s` }}
-          >
-            {/* Subtle nebula gradient */}
+      {/* ── Tokenomics Grid ── */}
+      <div className="relative z-10 w-full max-w-2xl mb-10 px-2">
+        <div className="text-white/25 text-xs tracking-[0.25em] uppercase font-mono text-center mb-4">
+          Tokenomics
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {TOKENOMICS.map((card) => (
             <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              key={card.id}
+              className="relative border border-void-gold/10 bg-void-deep/60 backdrop-blur-sm p-5 flex flex-col items-center gap-2 group overflow-hidden hover:border-void-gold/20 transition-colors"
+            >
+              {/* Corner lock */}
+              <div className="absolute top-2.5 right-2.5">
+                <Lock size={11} className="text-white/15" />
+              </div>
+
+              {/* Hover glow */}
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at top, rgba(255,215,0,0.04), transparent 70%)",
+                }}
+              />
+
+              {/* Icon */}
+              <div
+                className="text-2xl font-black"
+                style={{
+                  color:
+                    card.color === "void-gold"
+                      ? "#FFD700"
+                      : card.color === "void-purple"
+                        ? "#8e2de2"
+                        : "rgba(255,255,255,0.4)",
+                  textShadow:
+                    card.color === "void-gold"
+                      ? "0 0 16px rgba(255,215,0,0.5)"
+                      : card.color === "void-purple"
+                        ? "0 0 16px rgba(142,45,226,0.5)"
+                        : "none",
+                }}
+              >
+                {card.icon}
+              </div>
+
+              {/* Label */}
+              <div className="text-white/30 text-xs tracking-[0.2em] uppercase font-mono text-center">
+                {card.label}
+              </div>
+
+              {/* Value */}
+              <div
+                className="font-black font-mono text-xl text-center"
+                style={{
+                  color:
+                    card.color === "void-gold"
+                      ? "rgba(255,215,0,0.9)"
+                      : card.color === "void-purple"
+                        ? "rgba(142,45,226,0.9)"
+                        : "rgba(255,255,255,0.6)",
+                }}
+              >
+                {card.value}
+              </div>
+
+              {/* Sub */}
+              <div className="text-white/25 text-xs text-center leading-snug">
+                {card.sub}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Proof of Wisdom Timeline ── */}
+      <div className="relative z-10 w-full max-w-2xl mb-10 px-2">
+        <div className="text-white/25 text-xs tracking-[0.25em] uppercase font-mono text-center mb-5">
+          Proof of Wisdom
+        </div>
+
+        {/* Desktop: horizontal scroll; Mobile: stacked */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-0 sm:overflow-x-auto sm:pb-2">
+          {STEPS.map((step, idx) => (
+            <div
+              key={step.id}
+              className="flex sm:flex-col items-center sm:items-start flex-1 min-w-0"
+            >
+              {/* Step card */}
+              <div
+                className={`flex-1 sm:w-full border p-4 transition-colors ${
+                  step.active
+                    ? "border-void-gold/25 bg-void-gold/5"
+                    : "border-white/8 bg-void-deep/40"
+                }`}
+              >
+                <div
+                  className={`text-xs font-mono tracking-widest mb-1 ${step.active ? "text-void-gold/60" : "text-white/20"}`}
+                >
+                  {step.num}
+                </div>
+                <div
+                  className={`font-semibold text-sm tracking-wide mb-1 ${step.active ? "text-white/90" : "text-white/35"}`}
+                >
+                  {step.label}
+                </div>
+                <div
+                  className={`text-xs leading-relaxed ${step.active ? "text-white/45" : "text-white/20"}`}
+                >
+                  {step.desc}
+                </div>
+              </div>
+
+              {/* Arrow connector (not after last item) */}
+              {idx < STEPS.length - 1 && (
+                <div
+                  className={`sm:flex hidden items-center justify-center px-1 pt-6 shrink-0 ${
+                    STEPS[idx + 1].active
+                      ? "text-void-gold/40"
+                      : "text-white/15"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    role="presentation"
+                  >
+                    <title>Next step</title>
+                    <path
+                      d="M3 8h10M9 4l4 4-4 4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Your Progress ── */}
+      <div className="relative z-10 w-full max-w-2xl mb-10 px-2">
+        <div className="border border-void-gold/10 bg-void-deep/60 backdrop-blur-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-white/25 text-xs tracking-[0.25em] uppercase font-mono">
+              Your Progress
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-void-gold font-black font-mono text-xl">
+                {score.toLocaleString()}
+              </span>
+              <span className="text-white/30 text-xs font-mono">WS</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="relative h-2 bg-white/8 rounded-none overflow-hidden mb-3">
+            <div
+              className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
               style={{
-                background:
-                  "radial-gradient(ellipse at top, rgba(255,215,0,0.04), transparent 70%)",
+                width: `${progressPct}%`,
+                background: "linear-gradient(90deg, #DAA520, #FFD700)",
+                boxShadow:
+                  progressPct > 5 ? "0 0 12px rgba(255,215,0,0.4)" : "none",
               }}
             />
-
-            {/* Lock overlay */}
-            <div className="absolute top-3 right-3">
-              <Lock size={12} className="text-white/20" />
-            </div>
-
-            {/* Icon */}
-            <div className="text-void-gold/30">
-              <StatIcon type={card.iconType} />
-            </div>
-
-            {/* Label */}
-            <div className="text-white/30 text-xs tracking-wider text-center uppercase font-mono">
-              {card.label}
-            </div>
-
-            {/* Value */}
-            <div className="text-white/20 text-2xl font-bold font-mono">
-              {card.value}
-            </div>
-
-            {/* Coming Soon badge */}
-            <div className="mt-auto px-3 py-1 border border-void-gold/15 bg-void-gold/5">
-              <span className="text-void-gold/40 text-xs tracking-[0.2em] uppercase font-mono">
-                Coming Soon
-              </span>
-            </div>
           </div>
-        ))}
-      </div>
 
-      {/* How it works */}
-      <div className="relative z-10 max-w-lg w-full mb-10 px-2">
-        <div className="border border-void-gold/10 bg-void-deep/40 p-6">
-          <h3 className="text-void-gold/60 text-xs tracking-[0.2em] uppercase font-mono mb-4 flex items-center gap-2">
-            <Star size={12} />
-            How Mining Will Work
-          </h3>
-          <div className="space-y-3">
-            {HOW_ITEMS.map((item) => (
-              <div key={item.id} className="flex items-start gap-3">
-                <span className="text-base mt-0.5 shrink-0">{item.icon}</span>
-                <span className="text-white/40 text-sm leading-relaxed">
-                  {item.text}
-                </span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white/25 font-mono">
+              {score.toLocaleString()} / {miningThreshold.toLocaleString()} WS
+              required
+            </span>
+            <span className="text-white/25 font-mono">
+              {progressPct.toFixed(0)}%
+            </span>
           </div>
+
+          {score === 0 ? (
+            <p className="text-white/30 text-xs mt-3 leading-relaxed border-t border-white/5 pt-3">
+              Start sharing wisdom in the Light Room to begin your journey.
+            </p>
+          ) : score >= miningThreshold ? (
+            <p className="text-void-gold/70 text-xs mt-3 leading-relaxed border-t border-void-gold/10 pt-3 flex items-center gap-1.5">
+              <Check size={12} />
+              Mining threshold reached — you'll be first in line.
+            </p>
+          ) : (
+            <p className="text-white/30 text-xs mt-3 leading-relaxed border-t border-white/5 pt-3">
+              {(miningThreshold - score).toLocaleString()} more Wisdom Score
+              needed to start mining.
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Notify Me button */}
-      <div className="relative z-10 flex flex-col items-center gap-4 nebula-fade-in">
+      {/* ── CTA ── */}
+      <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 mb-8">
         {!notified ? (
           <button
             type="button"
             onClick={handleNotify}
-            className="void-btn-primary px-10 py-4 text-sm tracking-[0.2em] uppercase font-mono"
-            style={{
-              boxShadow: "0 0 30px rgba(255,215,0,0.15)",
-            }}
+            className="void-btn-primary px-8 py-4 text-sm tracking-[0.2em] uppercase font-mono flex items-center gap-2"
+            style={{ boxShadow: "0 0 30px rgba(255,215,0,0.12)" }}
           >
-            <Zap size={16} className="mr-2 inline-block" />
+            <Zap size={16} />
             Notify Me at Launch
           </button>
         ) : (
           <div
-            className="px-10 py-4 border border-void-gold/30 bg-void-gold/10 flex items-center gap-3"
-            style={{ boxShadow: "0 0 20px rgba(255,215,0,0.1)" }}
+            className="px-8 py-4 border border-void-gold/30 bg-void-gold/10 flex items-center gap-2"
+            style={{ boxShadow: "0 0 20px rgba(255,215,0,0.08)" }}
           >
             <span className="text-void-gold text-lg">✦</span>
             <span className="text-void-gold text-sm tracking-wider font-mono">
@@ -319,16 +563,25 @@ export default function MiningPage() {
           </div>
         )}
 
-        {/* Manifesto quote */}
-        <p
-          className="text-center text-white/25 text-xs tracking-[0.15em] uppercase font-mono max-w-xs"
-          style={{ textShadow: "0 0 10px rgba(255,215,0,0.1)" }}
+        <button
+          type="button"
+          onClick={handleShare}
+          className="flex items-center gap-2 px-6 py-4 border border-white/15 text-white/40 hover:text-white/70 hover:border-white/25 transition-colors text-sm tracking-wider font-mono"
         >
-          Wisdom is the proof of work.
-          <br />
-          Truth is the currency.
-        </p>
+          <Share2 size={14} />
+          Share
+        </button>
       </div>
+
+      {/* Manifesto quote */}
+      <p
+        className="relative z-10 text-center text-white/20 text-xs tracking-[0.2em] uppercase font-mono max-w-xs"
+        style={{ textShadow: "0 0 10px rgba(255,215,0,0.08)" }}
+      >
+        Wisdom is the proof of work.
+        <br />
+        Truth is the currency.
+      </p>
     </div>
   );
 }

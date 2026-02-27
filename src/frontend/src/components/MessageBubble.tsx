@@ -11,9 +11,10 @@ import {
  * - Upvote button with count
  * - Reply threading
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type Message, MessageType } from "../backend";
 import { useGetCosmicHandle } from "../hooks/useQueries";
+import { getCachedHandle, registerKnownUser } from "../lib/userRegistry";
 import ReplyInput from "./ReplyInput";
 import VoidAvatar from "./VoidAvatar";
 
@@ -36,12 +37,42 @@ function formatTime(timestamp: bigint): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function SenderName({ voidId }: { voidId: string }) {
-  const { data: handle } = useGetCosmicHandle(voidId);
+function SenderName({
+  voidId,
+  isOwn,
+  channelType,
+}: {
+  voidId: string;
+  isOwn: boolean;
+  channelType: "lightRoom" | "darkRoom" | "dm";
+}) {
+  // Check local cache first for instant display
+  const cachedHandle = getCachedHandle(voidId);
+  const { data: fetchedHandle } = useGetCosmicHandle(voidId);
+
+  // Update registry when backend returns fresh data
+  useEffect(() => {
+    if (fetchedHandle !== undefined && fetchedHandle !== null) {
+      registerKnownUser(voidId, fetchedHandle);
+    }
+  }, [fetchedHandle, voidId]);
+
+  // Prefer fetched handle, fall back to cached, then short ID
+  const handle = fetchedHandle ?? cachedHandle;
   const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
+  const displayName = handle || `void_${shortId}`;
+
+  const color = isOwn
+    ? "text-void-gold/80"
+    : channelType === "lightRoom"
+      ? "text-void-gold/70"
+      : channelType === "darkRoom"
+        ? "text-void-purple/80"
+        : "text-white/50";
+
   return (
-    <span className="text-xs font-medium opacity-70">
-      {handle || `void_${shortId}`}
+    <span className={`text-xs font-semibold tracking-wide ${color}`}>
+      {handle ? `@${handle.replace(/^@/, "")}` : displayName}
     </span>
   );
 }
@@ -112,12 +143,14 @@ export default function MessageBubble({
         <div
           className={`max-w-[85%] sm:max-w-[75%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}
         >
-          {/* Sender name */}
-          {!isOwn && (
-            <div className="mb-1 px-1">
-              <SenderName voidId={message.senderVoidId} />
-            </div>
-          )}
+          {/* Sender name — shown for all messages, own on right */}
+          <div className={`mb-1 px-1 ${isOwn ? "text-right" : "text-left"}`}>
+            <SenderName
+              voidId={message.senderVoidId}
+              isOwn={isOwn}
+              channelType={channelType}
+            />
+          </div>
 
           <div className={`px-4 py-3 ${bubbleClass} relative group`}>
             {/* Reply indicator */}

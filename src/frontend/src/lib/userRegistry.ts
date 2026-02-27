@@ -23,15 +23,21 @@ export function getAllKnownUsers(): KnownUser[] {
 }
 
 /** Add or update a user in the local registry */
-export function registerKnownUser(voidId: string, cosmicHandle?: string): void {
+export function registerKnownUser(
+  voidId: string,
+  cosmicHandle?: string | null,
+): void {
   if (!voidId) return;
   try {
     const users = getAllKnownUsers();
     const existing = users.find((u) => u.voidId === voidId);
     if (existing) {
-      // Update handle if provided and not already set
-      if (cosmicHandle && !existing.cosmicHandle) {
-        existing.cosmicHandle = cosmicHandle;
+      // Always update handle if a fresh value is provided
+      if (
+        cosmicHandle !== undefined &&
+        cosmicHandle !== existing.cosmicHandle
+      ) {
+        existing.cosmicHandle = cosmicHandle ?? null;
         localStorage.setItem(REGISTRY_KEY, JSON.stringify(users));
       }
     } else {
@@ -40,6 +46,16 @@ export function registerKnownUser(voidId: string, cosmicHandle?: string): void {
     }
   } catch {
     // localStorage may be unavailable in some contexts — fail silently
+  }
+}
+
+/** Get cached handle for a voidId from local registry */
+export function getCachedHandle(voidId: string): string | null {
+  try {
+    const users = getAllKnownUsers();
+    return users.find((u) => u.voidId === voidId)?.cosmicHandle ?? null;
+  } catch {
+    return null;
   }
 }
 

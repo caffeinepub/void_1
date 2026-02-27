@@ -7,12 +7,22 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface GroupInfo {
+    id: string;
+    members: Array<string>;
+    name: string;
+    createdAt: bigint;
+    createdBy: string;
+}
 export type ChannelType = {
     __kind__: "dm";
     dm: string;
 } | {
     __kind__: "darkRoom";
     darkRoom: null;
+} | {
+    __kind__: "group";
+    group: string;
 } | {
     __kind__: "lightRoom";
     lightRoom: null;
@@ -43,15 +53,20 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    addGroupMember(groupId: string, memberVoidId: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     associateBlobWithMessage(blobId: string, messageId: string, channel: string): Promise<void>;
     createDM(voidId1: string, voidId2: string): Promise<string>;
+    createGroup(name: string, creatorVoidId: string): Promise<string>;
     generateInviteToken(voidId: string): Promise<string>;
+    getAllGroups(): Promise<Array<GroupInfo>>;
     getAllUserProfiles(): Promise<Array<UserProfile>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCosmicHandle(voidId: string): Promise<string | null>;
     getDailyReflection(): Promise<string | null>;
+    getGroupInfo(groupId: string): Promise<GroupInfo | null>;
+    getGroupsForVoidId(voidId: string): Promise<Array<GroupInfo>>;
     getMessages(channel: string, count: bigint): Promise<Array<Message>>;
     getMessagesByKeyword(channel: string, keyword: string, count: bigint): Promise<Array<Message>>;
     getPinnedMessage(channel: string): Promise<Message | null>;

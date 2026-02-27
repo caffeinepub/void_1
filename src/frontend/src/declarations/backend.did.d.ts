@@ -12,7 +12,15 @@ import type { Principal } from '@icp-sdk/core/principal';
 
 export type ChannelType = { 'dm' : string } |
   { 'darkRoom' : null } |
+  { 'group' : string } |
   { 'lightRoom' : null };
+export interface GroupInfo {
+  'id' : string,
+  'members' : Array<string>,
+  'name' : string,
+  'createdAt' : bigint,
+  'createdBy' : string,
+}
 export interface Message {
   'id' : string,
   'upvotes' : bigint,
@@ -62,15 +70,20 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addGroupMember' : ActorMethod<[string, string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'associateBlobWithMessage' : ActorMethod<[string, string, string], undefined>,
   'createDM' : ActorMethod<[string, string], string>,
+  'createGroup' : ActorMethod<[string, string], string>,
   'generateInviteToken' : ActorMethod<[string], string>,
+  'getAllGroups' : ActorMethod<[], Array<GroupInfo>>,
   'getAllUserProfiles' : ActorMethod<[], Array<UserProfile>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCosmicHandle' : ActorMethod<[string], [] | [string]>,
   'getDailyReflection' : ActorMethod<[], [] | [string]>,
+  'getGroupInfo' : ActorMethod<[string], [] | [GroupInfo]>,
+  'getGroupsForVoidId' : ActorMethod<[string], Array<GroupInfo>>,
   'getMessages' : ActorMethod<[string, bigint], Array<Message>>,
   'getMessagesByKeyword' : ActorMethod<
     [string, string, bigint],

@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   Share2,
+  Users,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -16,12 +17,21 @@ import InviteModal from "../components/InviteModal";
 import VoidAvatar from "../components/VoidAvatar";
 import { useCustomAvatar } from "../hooks/useCustomAvatar";
 import {
+  useAddGroupMember,
   useCreateDM,
+  useCreateGroup,
   useGetCallerUserProfile,
+  useGetCosmicHandle,
+  useGetGroupsForVoidId,
   useGetSortedDMs,
 } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
-import { type KnownUser, searchKnownUsers } from "../lib/userRegistry";
+import {
+  type KnownUser,
+  getCachedHandle,
+  registerKnownUser,
+  searchKnownUsers,
+} from "../lib/userRegistry";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -278,6 +288,171 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
   );
 }
 
+// ─── NewGroupModal component ──────────────────────────────────────────────────
+interface NewGroupModalProps {
+  voidId: string;
+  onClose: () => void;
+}
+
+function NewGroupModal({ voidId, onClose }: NewGroupModalProps) {
+  const { mutateAsync: createGroup, isPending: creating } = useCreateGroup();
+  const { mutateAsync: addMember } = useAddGroupMember();
+  const navigate = useNavigate();
+  const [groupName, setGroupName] = useState("");
+  const [membersInput, setMembersInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    const name = groupName.trim();
+    if (!name) {
+      setError("Group name is required.");
+      return;
+    }
+    setError(null);
+    try {
+      const groupId = await createGroup({ name, creatorVoidId: voidId });
+
+      // Add extra members if provided
+      if (membersInput.trim()) {
+        const memberIds = membersInput
+          .split(",")
+          .map((m) => m.trim())
+          .filter(Boolean);
+
+        await Promise.all(
+          memberIds.map((memberId) => {
+            let id = memberId;
+            // Auto-complete short hex code
+            if (/^[a-zA-Z0-9]{6,16}$/.test(id)) {
+              id = `@void_shadow_${id}:canister`;
+            }
+            return addMember({ groupId, memberVoidId: id }).catch(() => {
+              // Non-fatal — log but don't block navigation
+              console.warn(`Could not add member ${id}`);
+            });
+          }),
+        );
+      }
+
+      toast.success(`Group "${name}" created`);
+      onClose();
+      navigate({
+        to: "/groups/$groupId",
+        params: { groupId: encodeURIComponent(groupId) },
+      });
+    } catch (err) {
+      console.error("createGroup error", err);
+      toast.error("Could not create group. Try again.");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
+      <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-void-gold/60" />
+            <h2 className="text-white font-semibold tracking-wider">
+              New Group
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-white/30 hover:text-white/60 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Group name */}
+        <div className="mb-4">
+          <label
+            htmlFor="group-name-input"
+            className="block text-white/40 text-xs mb-2 tracking-wider uppercase"
+          >
+            Group Name <span className="text-void-gold/60">*</span>
+          </label>
+          <input
+            id="group-name-input"
+            type="text"
+            value={groupName}
+            onChange={(e) => {
+              setGroupName(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreate();
+            }}
+            placeholder="e.g. Wisdom Seekers"
+            maxLength={60}
+            className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
+          />
+          {error && <p className="text-red-400/80 text-xs mt-1.5">{error}</p>}
+        </div>
+
+        {/* Members */}
+        <div className="mb-5">
+          <label
+            htmlFor="group-members-input"
+            className="block text-white/40 text-xs mb-2 tracking-wider uppercase"
+          >
+            Add Members{" "}
+            <span className="text-white/20 normal-case">(optional)</span>
+          </label>
+          <textarea
+            id="group-members-input"
+            value={membersInput}
+            onChange={(e) => setMembersInput(e.target.value)}
+            placeholder="VOID IDs separated by commas&#10;e.g. abc12345, def67890"
+            rows={3}
+            className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-xs font-mono focus:outline-none focus:border-void-gold/50 resize-none transition-colors"
+          />
+          <p className="text-white/20 text-xs mt-1">
+            Short codes or full VOID IDs, comma-separated.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={!groupName.trim() || creating}
+          className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50"
+        >
+          {creating ? "Creating..." : "Create Group"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Shows the partner's cosmic handle (or short VOID ID) in the DM list */
+function DMPartnerName({ voidId }: { voidId: string }) {
+  const cachedHandle = getCachedHandle(voidId);
+  const { data: fetchedHandle } = useGetCosmicHandle(voidId);
+
+  useEffect(() => {
+    if (fetchedHandle) registerKnownUser(voidId, fetchedHandle);
+  }, [fetchedHandle, voidId]);
+
+  const handle = fetchedHandle ?? cachedHandle;
+  const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
+  const displayName = handle
+    ? `@${handle.replace(/^@/, "")}`
+    : `void_${shortId}`;
+
+  return (
+    <div>
+      <div className="text-white/90 text-sm font-semibold truncate">
+        {displayName}
+      </div>
+      <div className="text-white/30 text-xs font-mono truncate">{voidId}</div>
+    </div>
+  );
+}
+
 /** Small avatar used inside the search results dropdown */
 function UserSearchAvatar({ voidId }: { voidId: string }) {
   const storageKey = `void_avatar_${voidId}`;
@@ -290,6 +465,9 @@ function UserSearchAvatar({ voidId }: { voidId: string }) {
   return <VoidAvatar voidId={voidId} size="sm" customAvatarUrl={customUrl} />;
 }
 
+// ─── Tab type ─────────────────────────────────────────────────────────────────
+type ListTab = "dms" | "groups";
+
 // ─── DMList page ──────────────────────────────────────────────────────────────
 
 export default function DMList() {
@@ -299,8 +477,15 @@ export default function DMList() {
   const { data: _userProfile } = useGetCallerUserProfile();
   const voidId = useVoidId();
   const { avatarUrl: myCustomAvatar } = useCustomAvatar(voidId ?? null);
+  const [activeTab, setActiveTab] = useState<ListTab>("dms");
   const [showNewDM, setShowNewDM] = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Groups data
+  const { data: groups = [], isLoading: groupsLoading } = useGetGroupsForVoidId(
+    voidId ?? "",
+  );
 
   const handleCreateDM = async (targetVoidId: string) => {
     if (!voidId) return;
@@ -333,7 +518,7 @@ export default function DMList() {
   return (
     <div className="void-bg flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-white font-bold tracking-wider text-lg">
             Messages
@@ -349,15 +534,55 @@ export default function DMList() {
           >
             <Share2 size={16} />
           </button>
-          <button
-            type="button"
-            onClick={() => setShowNewDM(true)}
-            className="void-btn-icon"
-            title="New message"
-          >
-            <Plus size={18} />
-          </button>
+          {activeTab === "dms" && (
+            <button
+              type="button"
+              onClick={() => setShowNewDM(true)}
+              className="void-btn-icon"
+              title="New direct message"
+            >
+              <Plus size={18} />
+            </button>
+          )}
+          {activeTab === "groups" && (
+            <button
+              type="button"
+              onClick={() => setShowNewGroup(true)}
+              className="void-btn-icon"
+              title="New group"
+            >
+              <Plus size={18} />
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex shrink-0 border-b border-white/10">
+        <button
+          type="button"
+          onClick={() => setActiveTab("dms")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-wider uppercase transition-colors ${
+            activeTab === "dms"
+              ? "text-void-gold border-b-2 border-void-gold bg-void-gold/5"
+              : "text-white/30 hover:text-white/60"
+          }`}
+        >
+          <MessageSquare size={13} />
+          Direct Messages
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("groups")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-wider uppercase transition-colors ${
+            activeTab === "groups"
+              ? "text-void-gold border-b-2 border-void-gold bg-void-gold/5"
+              : "text-white/30 hover:text-white/60"
+          }`}
+        >
+          <Users size={13} />
+          Groups
+        </button>
       </div>
 
       {/* New DM modal */}
@@ -370,6 +595,11 @@ export default function DMList() {
         />
       )}
 
+      {/* New Group modal */}
+      {showNewGroup && voidId && (
+        <NewGroupModal voidId={voidId} onClose={() => setShowNewGroup(false)} />
+      )}
+
       {/* Invite Modal */}
       <InviteModal
         isOpen={inviteOpen}
@@ -377,63 +607,121 @@ export default function DMList() {
         voidId={voidId ?? ""}
       />
 
-      {/* DM list */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading && (
-          <div className="flex justify-center py-8">
-            <div className="text-white/30 text-sm animate-pulse">
-              Loading channels...
+      {/* ── Direct Messages tab ── */}
+      {activeTab === "dms" && (
+        <div className="flex-1 overflow-y-auto">
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="text-white/30 text-sm animate-pulse">
+                Loading channels...
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!isLoading && dmChannels.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <MessageSquare size={40} className="text-white/10 mb-4" />
-            <p className="text-white/30 text-sm mb-2">
-              No private channels yet.
-            </p>
-            <p className="text-white/20 text-xs">
-              Start a conversation with another VOID ID.
-            </p>
-          </div>
-        )}
+          {!isLoading && dmChannels.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <MessageSquare size={40} className="text-white/10 mb-4" />
+              <p className="text-white/30 text-sm mb-2">
+                No private channels yet.
+              </p>
+              <p className="text-white/20 text-xs">
+                Start a conversation with another VOID ID.
+              </p>
+            </div>
+          )}
 
-        {dmChannels.map((dm) => {
-          const channelId = getChannelId(dm);
-          const partner = voidId ? getDMPartner(channelId, voidId) : channelId;
-          const isMe = partner === voidId;
-          return (
+          {dmChannels.map((dm) => {
+            const channelId = getChannelId(dm);
+            const partner = voidId
+              ? getDMPartner(channelId, voidId)
+              : channelId;
+            const isMe = partner === voidId;
+            return (
+              <button
+                key={channelId}
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: "/dms/$channelId",
+                    params: { channelId: encodeURIComponent(channelId) },
+                  })
+                }
+                className="w-full flex items-center gap-4 px-6 py-4 border-b border-white/5 hover:bg-void-gold/5 transition-colors text-left"
+              >
+                <VoidAvatar
+                  voidId={partner}
+                  size="md"
+                  customAvatarUrl={
+                    isMe ? (myCustomAvatar ?? undefined) : undefined
+                  }
+                />
+                <div className="flex-1 min-w-0">
+                  <DMPartnerName voidId={partner} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Groups tab ── */}
+      {activeTab === "groups" && (
+        <div className="flex-1 overflow-y-auto">
+          {groupsLoading && (
+            <div className="flex justify-center py-8">
+              <div className="text-white/30 text-sm animate-pulse">
+                Loading groups...
+              </div>
+            </div>
+          )}
+
+          {!groupsLoading && groups.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <Users size={40} className="text-white/10 mb-4" />
+              <p className="text-white/30 text-sm mb-2">No groups yet.</p>
+              <p className="text-white/20 text-xs">
+                Create one to start a group conversation.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowNewGroup(true)}
+                className="mt-6 void-btn-primary px-6 py-2.5 text-xs tracking-widest uppercase"
+              >
+                <Plus size={13} className="inline mr-1.5" />
+                New Group
+              </button>
+            </div>
+          )}
+
+          {groups.map((group) => (
             <button
-              key={channelId}
+              key={group.id}
               type="button"
               onClick={() =>
                 navigate({
-                  to: "/dms/$channelId",
-                  params: { channelId: encodeURIComponent(channelId) },
+                  to: "/groups/$groupId",
+                  params: { groupId: encodeURIComponent(group.id) },
                 })
               }
               className="w-full flex items-center gap-4 px-6 py-4 border-b border-white/5 hover:bg-void-gold/5 transition-colors text-left"
             >
-              <VoidAvatar
-                voidId={partner}
-                size="md"
-                customAvatarUrl={
-                  isMe ? (myCustomAvatar ?? undefined) : undefined
-                }
-              />
+              {/* Group icon */}
+              <div className="w-10 h-10 rounded-full bg-void-deep border border-void-gold/20 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(255,215,0,0.15)]">
+                <Users size={16} className="text-void-gold/60" />
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="text-white/80 text-sm font-medium truncate">
-                  {partner}
+                <div className="text-white font-semibold text-sm truncate">
+                  {group.name}
                 </div>
-                <div className="text-white/30 text-xs">
-                  Private channel · E2EE
+                <div className="text-white/40 text-xs mt-0.5">
+                  {group.members.length}{" "}
+                  {group.members.length === 1 ? "member" : "members"}
                 </div>
               </div>
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

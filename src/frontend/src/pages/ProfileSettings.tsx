@@ -12,6 +12,7 @@ import {
 } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import { getKeyFingerprint } from "../lib/crypto";
+import { registerKnownUser } from "../lib/userRegistry";
 
 const BIO_MAX = 280;
 
@@ -60,6 +61,8 @@ export default function ProfileSettings() {
       voidId,
       cosmicHandle: cosmicHandle.trim() || undefined,
     });
+    // Update local registry so handle shows immediately in chats
+    registerKnownUser(voidId, cosmicHandle.trim() || null);
     toast.success("Profile updated", {
       description: "Your cosmic identity has been saved.",
     });

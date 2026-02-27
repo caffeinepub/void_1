@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Message, MessageType, UserProfile } from "../backend";
+import type { GroupInfo, Message, MessageType, UserProfile } from "../backend";
 import { useActor } from "./useActor";
 
 // ─── User Profile ────────────────────────────────────────────────────────────
@@ -385,5 +385,71 @@ export function useGetPinnedMessage(channel: string) {
     },
     enabled: !!actor && !actorFetching && !!channel,
     staleTime: 30_000,
+  });
+}
+
+// ─── Groups ───────────────────────────────────────────────────────────────────
+
+export function useGetGroupsForVoidId(voidId: string) {
+  const { actor, isFetching: actorFetching } = useActor();
+  return useQuery<GroupInfo[]>({
+    queryKey: ["groupsForVoidId", voidId],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getGroupsForVoidId(voidId);
+    },
+    enabled: !!actor && !actorFetching && !!voidId,
+    refetchInterval: 5000,
+  });
+}
+
+export function useCreateGroup() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      creatorVoidId,
+    }: { name: string; creatorVoidId: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.createGroup(name, creatorVoidId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["groupsForVoidId", variables.creatorVoidId],
+      });
+    },
+  });
+}
+
+export function useAddGroupMember() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      groupId,
+      memberVoidId,
+    }: { groupId: string; memberVoidId: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      await actor.addGroupMember(groupId, memberVoidId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["groupInfo", variables.groupId],
+      });
+    },
+  });
+}
+
+export function useGetGroupInfo(groupId: string) {
+  const { actor, isFetching: actorFetching } = useActor();
+  return useQuery<GroupInfo | null>({
+    queryKey: ["groupInfo", groupId],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getGroupInfo(groupId);
+    },
+    enabled: !!actor && !actorFetching && !!groupId,
+    staleTime: 10_000,
   });
 }

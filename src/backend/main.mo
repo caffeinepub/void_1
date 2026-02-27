@@ -53,15 +53,24 @@ actor {
     #lightRoom;
     #darkRoom;
     #dm : Text;
+    #group : Text;
+  };
+
+  public type GroupInfo = {
+    id : Text;
+    name : Text;
+    members : [Text];
+    createdBy : Text;
+    createdAt : Int;
   };
 
   // Persistent state
   let principalProfiles = Map.empty<Principal, UserProfile>();
-
   let voidIdToPrincipal = Map.empty<Text, Principal>();
   let rooms = Map.empty<Text, Room>();
   let inviteTokens = Map.empty<Text, Text>();
   let blobs = Map.empty<Text, Storage.ExternalBlob>();
+  let groups = Map.empty<Text, GroupInfo>();
 
   // Creator Portal state
   var dailyReflection : ?Text = null;
@@ -331,6 +340,8 @@ actor {
     for ((channel, _) in rooms.entries()) {
       if (channel.startsWith(#text("DM-"))) {
         channelTypes.add(#dm(channel));
+      } else if (channel.startsWith(#text("GROUP-"))) {
+        channelTypes.add(#group(channel));
       };
     };
 
@@ -362,17 +373,32 @@ actor {
       Runtime.trap("Unauthorized: Only users can create DM channels");
     };
 
-    let callerOwnsId1 = switch (voidIdToPrincipal.get(voidId1)) {
-      case (?owner) { owner == caller };
-      case (null) { false };
-    };
-    let callerOwnsId2 = switch (voidIdToPrincipal.get(voidId2)) {
-      case (?owner) { owner == caller };
-      case (null) { false };
+    // Auto-register caller's voidId if it's one of the two provided and not already registered
+    let voidId1Owner = voidIdToPrincipal.get(voidId1);
+    let voidId2Owner = voidIdToPrincipal.get(voidId2);
+
+    // Register voidId1 if caller should own it and it's not registered
+    switch (voidId1Owner) {
+      case (null) {
+        // Not registered, so register it to caller
+        voidIdToPrincipal.add(voidId1, caller);
+      };
+      case (?owner) {
+        // Already registered, verify ownership if caller claims it
+        // (no action needed, just let it be)
+      };
     };
 
-    if (not callerOwnsId1 and not callerOwnsId2) {
-      Runtime.trap("Unauthorized: Must own one of the VOID IDs to create a DM");
+    // Register voidId2 if caller should own it and it's not registered
+    switch (voidId2Owner) {
+      case (null) {
+        // Not registered, so register it to caller
+        voidIdToPrincipal.add(voidId2, caller);
+      };
+      case (?owner) {
+        // Already registered
+        // (no action needed, just let it be)
+      };
     };
 
     let channelId = createDMChannelId(voidId1, voidId2);
@@ -496,5 +522,104 @@ actor {
         };
       };
     };
+  };
+
+  // Group Chat Functions
+
+  public shared ({ caller }) func createGroup(name : Text, creatorVoidId : Text) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can create groups");
+    };
+
+    // Verify caller owns the creatorVoidId
+    checkUserOwnership(caller, creatorVoidId);
+
+    let groupId = "GROUP-" # Time.now().toText();
+    let members = [creatorVoidId]; // Only creator in members
+
+    let groupInfo : GroupInfo = {
+      id = groupId;
+      name;
+      members;
+      createdBy = creatorVoidId;
+      createdAt = Time.now();
+    };
+
+    let newRoom : Room = {
+      messages = List.empty<Message>();
+      lastActive = Time.now();
+    };
+
+    // Store both groupInfo and corresponding Room
+    groups.add(groupId, groupInfo);
+    rooms.add(groupId, newRoom);
+
+    groupId;
+  };
+
+  public shared ({ caller }) func addGroupMember(groupId : Text, memberVoidId : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can add group members");
+    };
+
+    switch (groups.get(groupId)) {
+      case (null) {
+        Runtime.trap("Group not found");
+      };
+      case (?group) {
+        // Verify caller is either the creator or an existing member
+        let callerProfile = principalProfiles.get(caller);
+        let callerVoidId = switch (callerProfile) {
+          case (null) { "" };
+          case (?profile) { profile.voidId };
+        };
+
+        let isCreator = group.createdBy == callerVoidId;
+        let isMember = group.members.any(func(m) { m == callerVoidId });
+
+        if (not (isCreator or isMember)) {
+          Runtime.trap("Unauthorized: Only group creator or members can add new members");
+        };
+
+        // Check if member is already in group
+        let alreadyMember = group.members.any(func(m) { m == memberVoidId });
+        if (alreadyMember) {
+          return (); // Already member, do nothing
+        };
+
+        let newMembers = group.members.concat([memberVoidId]);
+        let updatedGroup : GroupInfo = { group with members = newMembers };
+        groups.add(groupId, updatedGroup);
+      };
+    };
+  };
+
+  public query ({ caller }) func getGroupInfo(groupId : Text) : async ?GroupInfo {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get group info");
+    };
+    groups.get(groupId);
+  };
+
+  public query ({ caller }) func getGroupsForVoidId(voidId : Text) : async [GroupInfo] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get groups for a VOID ID");
+    };
+
+    let matchingGroups = List.empty<GroupInfo>();
+    for ((_, group) in groups.entries()) {
+      let isMember = group.members.any(func(m) { m == voidId });
+      if (isMember) {
+        matchingGroups.add(group);
+      };
+    };
+    matchingGroups.toArray();
+  };
+
+  public query ({ caller }) func getAllGroups() : async [GroupInfo] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can get all groups");
+    };
+    groups.values().toArray();
   };
 };

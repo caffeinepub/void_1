@@ -20,6 +20,7 @@ import CreatorPortal from "./pages/CreatorPortal";
 import DMList from "./pages/DMList";
 import DMView from "./pages/DMView";
 import DarkRoom from "./pages/DarkRoom";
+import GroupView from "./pages/GroupView";
 import InviteLanding from "./pages/InviteLanding";
 import LightRoom from "./pages/LightRoom";
 import MiningPage from "./pages/MiningPage";
@@ -166,6 +167,12 @@ const creatorRoute = createRoute({
   component: CreatorPortal,
 });
 
+const groupViewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/groups/$groupId",
+  component: GroupView,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   lightRoomRoute,
@@ -176,6 +183,7 @@ const routeTree = rootRoute.addChildren([
   miningRoute,
   inviteRoute,
   creatorRoute,
+  groupViewRoute,
 ]);
 
 const router = createRouter({ routeTree });

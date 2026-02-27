@@ -9,6 +9,7 @@ import { ChevronUp } from "lucide-react";
  *   - string     = decrypted plaintext (visible)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { Message } from "../backend";
 import { useEncryption } from "../hooks/useEncryption";
 import {
@@ -50,6 +51,8 @@ interface ChatViewProps {
   channel: string;
   channelType: "lightRoom" | "darkRoom" | "dm";
   title: string;
+  /** Optional element rendered in the header next to the title (e.g. member count button) */
+  extraHeaderAction?: ReactNode;
 }
 
 // Map values: undefined = pending, null = failed decrypt, string = plaintext
@@ -59,6 +62,7 @@ export default function ChatView({
   channel,
   channelType,
   title,
+  extraHeaderAction,
 }: ChatViewProps) {
   const { data: messages = [], isLoading } = useGetMessages(channel);
   const { mutateAsync: loadOlder, isPending: loadingOlder } =
@@ -242,6 +246,7 @@ export default function ChatView({
           </p>
         </div>
         <div className="shrink-0 flex items-center gap-2">
+          {extraHeaderAction}
           <span className="w-2 h-2 rounded-full bg-green-500/60" />
           <span className="text-white/30 text-xs">E2EE</span>
         </div>

@@ -24,6 +24,13 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const GroupInfo = IDL.Record({
+  'id' : IDL.Text,
+  'members' : IDL.Vec(IDL.Text),
+  'name' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'createdBy' : IDL.Text,
+});
 export const UserProfile = IDL.Record({
   'voidId' : IDL.Text,
   'cosmicHandle' : IDL.Opt(IDL.Text),
@@ -47,6 +54,7 @@ export const Message = IDL.Record({
 export const ChannelType = IDL.Variant({
   'dm' : IDL.Text,
   'darkRoom' : IDL.Null,
+  'group' : IDL.Text,
   'lightRoom' : IDL.Null,
 });
 
@@ -78,15 +86,20 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addGroupMember' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'associateBlobWithMessage' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'createGroup' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'getAllGroups' : IDL.Func([], [IDL.Vec(GroupInfo)], ['query']),
   'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCosmicHandle' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
   'getDailyReflection' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+  'getGroupInfo' : IDL.Func([IDL.Text], [IDL.Opt(GroupInfo)], ['query']),
+  'getGroupsForVoidId' : IDL.Func([IDL.Text], [IDL.Vec(GroupInfo)], ['query']),
   'getMessages' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Vec(Message)], ['query']),
   'getMessagesByKeyword' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat],
@@ -160,6 +173,13 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const GroupInfo = IDL.Record({
+    'id' : IDL.Text,
+    'members' : IDL.Vec(IDL.Text),
+    'name' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'createdBy' : IDL.Text,
+  });
   const UserProfile = IDL.Record({
     'voidId' : IDL.Text,
     'cosmicHandle' : IDL.Opt(IDL.Text),
@@ -183,6 +203,7 @@ export const idlFactory = ({ IDL }) => {
   const ChannelType = IDL.Variant({
     'dm' : IDL.Text,
     'darkRoom' : IDL.Null,
+    'group' : IDL.Text,
     'lightRoom' : IDL.Null,
   });
   
@@ -214,6 +235,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addGroupMember' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'associateBlobWithMessage' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text],
@@ -221,12 +243,20 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'createGroup' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'getAllGroups' : IDL.Func([], [IDL.Vec(GroupInfo)], ['query']),
     'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCosmicHandle' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
     'getDailyReflection' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+    'getGroupInfo' : IDL.Func([IDL.Text], [IDL.Opt(GroupInfo)], ['query']),
+    'getGroupsForVoidId' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(GroupInfo)],
+        ['query'],
+      ),
     'getMessages' : IDL.Func(
         [IDL.Text, IDL.Nat],
         [IDL.Vec(Message)],

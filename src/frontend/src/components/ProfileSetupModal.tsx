@@ -4,6 +4,7 @@ import { useEncryption } from "../hooks/useEncryption";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSaveCallerUserProfile } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
+import { registerKnownUser } from "../lib/userRegistry";
 
 const BIO_MAX = 280;
 
@@ -31,6 +32,10 @@ export default function ProfileSetupModal() {
       voidId,
       cosmicHandle: cosmicHandle.trim() || undefined,
     });
+    // Update local registry so handle shows in chats right away
+    if (voidId && cosmicHandle.trim()) {
+      registerKnownUser(voidId, cosmicHandle.trim());
+    }
   };
 
   return (
