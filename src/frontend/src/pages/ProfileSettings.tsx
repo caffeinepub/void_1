@@ -164,10 +164,22 @@ export default function ProfileSettings() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <div className="text-void-gold/80 font-mono text-sm tracking-wider mb-1">
-            {voidId}
-          </div>
-          <div className="text-white/30 text-xs">
+          {/* Cosmic handle as main title */}
+          {cosmicHandle.trim() ? (
+            <>
+              <div className="text-void-gold font-bold text-xl tracking-wide mb-1">
+                @{cosmicHandle.trim().replace(/^@/, "")}
+              </div>
+              <div className="text-white/30 text-xs font-mono mb-1">
+                {voidId}
+              </div>
+            </>
+          ) : (
+            <div className="text-void-gold/70 font-mono text-sm tracking-wider mb-1">
+              {voidId}
+            </div>
+          )}
+          <div className="text-white/25 text-xs">
             Tap avatar to change photo
           </div>
         </div>

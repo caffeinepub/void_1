@@ -93,7 +93,8 @@ export default function MessageInput({
   } | null>(null);
   const [fileBytes, setFileBytes] = useState<Uint8Array | null>(null);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  const { encryptForSend, encryptFile, isReady } = useEncryption();
+  // Use channel-specific shared key so receiver can decrypt this message
+  const { encryptForSend, encryptFile, isReady } = useEncryption(channel);
   const { mutateAsync: postMessage, isPending: postPending } = usePostMessage();
   const { mutateAsync: postMessageWithKeywords, isPending: postKwPending } =
     usePostMessageWithKeywords();

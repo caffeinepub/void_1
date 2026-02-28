@@ -1,6 +1,10 @@
 /**
  * useEncryption — manages the E2EE lifecycle for VOID.
- * Loads or creates the user's AES-GCM key on mount.
+ *
+ * When a channelId is provided, uses a shared channel key derived from the
+ * channel ID (deterministic) so all participants can read each other's messages.
+ *
+ * Falls back to a per-user key when no channelId is given (legacy support).
  */
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -8,19 +12,31 @@ import {
   decryptMessage,
   encryptBytes,
   encryptMessage,
+  getChannelKey,
   loadOrCreateKey,
 } from "../lib/crypto";
 
-export function useEncryption() {
+export function useEncryption(channelId?: string) {
   const [key, setKey] = useState<CryptoKey | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    loadOrCreateKey().then((k) => {
-      setKey(k);
-      setIsReady(true);
-    });
-  }, []);
+    setIsReady(false);
+    const loadKey = channelId ? getChannelKey(channelId) : loadOrCreateKey();
+
+    loadKey
+      .then((k) => {
+        setKey(k);
+        setIsReady(true);
+      })
+      .catch(() => {
+        // Fallback to per-user key if channel key derivation fails
+        loadOrCreateKey().then((k) => {
+          setKey(k);
+          setIsReady(true);
+        });
+      });
+  }, [channelId]);
 
   const encryptForSend = useCallback(
     async (plaintext: string): Promise<string> => {

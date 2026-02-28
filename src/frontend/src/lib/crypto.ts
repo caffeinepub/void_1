@@ -5,6 +5,56 @@
 
 const KEY_STORAGE_KEY = "void_e2ee_key";
 
+// ─── Channel Key (shared symmetric key per channel) ───────────────────────────
+
+/**
+ * Get or create a deterministic shared key for a channel.
+ * All users in the same channel derive the same key from the channel ID,
+ * so messages encrypted by any sender are readable by all participants.
+ *
+ * For public rooms (lightRoom, darkRoom): uses a fixed app-wide seed.
+ * For DMs: derives from the sorted VOID IDs in the channel string.
+ */
+export async function getChannelKey(channelId: string): Promise<CryptoKey> {
+  const storageKey = `void_channel_key_${channelId}`;
+  const stored = localStorage.getItem(storageKey);
+  if (stored) {
+    try {
+      return await importKey(stored);
+    } catch {
+      // Corrupted — regenerate below
+    }
+  }
+
+  // Derive a deterministic 32-byte seed from the channel ID
+  const seed = `VOID_CHANNEL_${channelId}_SHARED_SECRET_2026`;
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(seed),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits", "deriveKey"],
+  );
+
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(`void_salt_${channelId}`),
+      iterations: 1000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"],
+  );
+
+  const exported = await exportKey(derivedKey);
+  localStorage.setItem(storageKey, exported);
+  return derivedKey;
+}
+
 // ─── Key Management ───────────────────────────────────────────────────────────
 
 /** Generate a new AES-GCM 256-bit key */

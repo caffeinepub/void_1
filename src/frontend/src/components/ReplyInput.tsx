@@ -22,7 +22,8 @@ export default function ReplyInput({
   onClose,
 }: ReplyInputProps) {
   const [text, setText] = useState("");
-  const { encryptForSend, isReady } = useEncryption();
+  // Use channel-specific shared key so receiver can decrypt replies
+  const { encryptForSend, isReady } = useEncryption(channel);
   const { mutateAsync: postMessage, isPending } = usePostMessage();
   const sendBtnRef = useRef<HTMLButtonElement>(null);
 

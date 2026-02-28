@@ -68,7 +68,8 @@ export default function ChatView({
   const { mutateAsync: loadOlder, isPending: loadingOlder } =
     useLoadOlderMessages();
   const { mutateAsync: upvote } = useUpvoteMessage();
-  const { decryptReceived, isReady } = useEncryption();
+  // Use channel-specific shared key so all participants can decrypt each other's messages
+  const { decryptReceived, isReady } = useEncryption(channel);
   const voidId = useVoidId();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);

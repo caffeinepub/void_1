@@ -10,12 +10,14 @@ import {
  * - Keyword pill badges
  * - Upvote button with count
  * - Reply threading
+ * - Clickable sender name opens user profile
  */
 import { useEffect, useState } from "react";
 import { type Message, MessageType } from "../backend";
 import { useGetCosmicHandle } from "../hooks/useQueries";
 import { getCachedHandle, registerKnownUser } from "../lib/userRegistry";
 import ReplyInput from "./ReplyInput";
+import UserProfileCard from "./UserProfileCard";
 import VoidAvatar from "./VoidAvatar";
 
 interface MessageBubbleProps {
@@ -41,10 +43,12 @@ function SenderName({
   voidId,
   isOwn,
   channelType,
+  onClickProfile,
 }: {
   voidId: string;
   isOwn: boolean;
   channelType: "lightRoom" | "darkRoom" | "dm";
+  onClickProfile?: () => void;
 }) {
   // Check local cache first for instant display
   const cachedHandle = getCachedHandle(voidId);
@@ -57,23 +61,38 @@ function SenderName({
     }
   }, [fetchedHandle, voidId]);
 
-  // Prefer fetched handle, fall back to cached, then short ID
+  // Prefer fetched handle, fall back to cached
   const handle = fetchedHandle ?? cachedHandle;
   const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
-  const displayName = handle || `void_${shortId}`;
 
-  const color = isOwn
-    ? "text-void-gold/80"
+  const handleColor = isOwn
+    ? "text-void-gold"
     : channelType === "lightRoom"
-      ? "text-void-gold/70"
+      ? "text-void-gold/80"
       : channelType === "darkRoom"
-        ? "text-void-purple/80"
-        : "text-white/50";
+        ? "text-void-purple"
+        : "text-white/70";
 
   return (
-    <span className={`text-xs font-semibold tracking-wide ${color}`}>
-      {handle ? `@${handle.replace(/^@/, "")}` : displayName}
-    </span>
+    <button
+      type="button"
+      onClick={onClickProfile}
+      className={`text-left flex flex-col gap-0.5 cursor-pointer group/sender ${onClickProfile ? "hover:opacity-80 transition-opacity" : "cursor-default"}`}
+      title={onClickProfile ? "View profile" : undefined}
+    >
+      {/* Main title: cosmic handle (if set), else short VOID ID */}
+      <span
+        className={`text-xs font-bold tracking-wide ${handleColor} ${onClickProfile ? "group-hover/sender:underline underline-offset-2" : ""}`}
+      >
+        {handle ? `@${handle.replace(/^@/, "")}` : `void_${shortId}`}
+      </span>
+      {/* Subtitle: VOID ID (only shown when handle is set) */}
+      {handle && (
+        <span className="text-[10px] font-mono text-white/25 leading-none">
+          @void_{shortId}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -91,6 +110,7 @@ export default function MessageBubble({
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(true);
   const [upvoteLocal, setUpvoteLocal] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const isOwn = message.senderVoidId === currentVoidId;
   const isLightRoom = channelType === "lightRoom";
@@ -144,11 +164,14 @@ export default function MessageBubble({
           className={`max-w-[85%] sm:max-w-[75%] ${isOwn ? "items-end" : "items-start"} flex flex-col`}
         >
           {/* Sender name — shown for all messages, own on right */}
-          <div className={`mb-1 px-1 ${isOwn ? "text-right" : "text-left"}`}>
+          <div
+            className={`mb-1 px-1 ${isOwn ? "text-right items-end" : "text-left items-start"} flex flex-col`}
+          >
             <SenderName
               voidId={message.senderVoidId}
               isOwn={isOwn}
               channelType={channelType}
+              onClickProfile={!isOwn ? () => setShowProfile(true) : undefined}
             />
           </div>
 
@@ -310,6 +333,14 @@ export default function MessageBubble({
             </div>
           )}
         </div>
+      )}
+
+      {/* User profile card modal — opens when clicking sender name */}
+      {showProfile && !isOwn && (
+        <UserProfileCard
+          voidId={message.senderVoidId}
+          onClose={() => setShowProfile(false)}
+        />
       )}
     </div>
   );

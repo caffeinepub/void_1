@@ -3,6 +3,7 @@ import {
   AtSign,
   Check,
   Copy,
+  Info,
   MessageSquare,
   Plus,
   Search,
@@ -14,6 +15,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ChannelType } from "../backend";
 import InviteModal from "../components/InviteModal";
+import UserProfileCard from "../components/UserProfileCard";
 import VoidAvatar from "../components/VoidAvatar";
 import { useCustomAvatar } from "../hooks/useCustomAvatar";
 import {
@@ -71,6 +73,8 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<KnownUser[]>([]);
   const [copied, setCopied] = useState(false);
+  // Profile preview for search results
+  const [previewVoidId, setPreviewVoidId] = useState<string | null>(null);
 
   // Search by handle as user types
   useEffect(() => {
@@ -95,11 +99,13 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
       return;
     }
     setValidationError(null);
-    await onCreate(trimmed);
+    // Show profile preview first
+    setPreviewVoidId(trimmed);
   };
 
-  const handleSelectUser = async (user: KnownUser) => {
-    await onCreate(user.voidId);
+  const handleSelectUser = (user: KnownUser) => {
+    // Show profile preview before opening DM
+    setPreviewVoidId(user.voidId);
   };
 
   const copyMyId = () => {
@@ -115,176 +121,198 @@ function NewDMModal({ voidId, onClose, onCreate, creating }: NewDMModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
-      <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold tracking-wider">
-            New Message
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-white/30 hover:text-white/60 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* My VOID ID + copy */}
-        <div className="mb-5 p-3 bg-void-black/40 border border-void-gold/10">
-          <div className="text-white/30 text-xs mb-1">Your VOID ID</div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-void-gold/70 text-xs font-mono truncate flex-1">
-              {voidId}
-            </div>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
+        <div className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-white font-semibold tracking-wider">
+              New Message
+            </h2>
             <button
               type="button"
-              onClick={copyMyId}
-              aria-label="Copy my VOID ID"
-              className="shrink-0 flex items-center gap-1 text-xs text-void-gold/50 hover:text-void-gold transition-colors"
+              onClick={onClose}
+              aria-label="Close"
+              className="text-white/30 hover:text-white/60 transition-colors"
             >
-              {copied ? <Check size={12} /> : <Copy size={12} />}
-              {copied ? "Copied" : "Copy"}
+              <X size={18} />
             </button>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex mb-5 border border-void-gold/15 rounded-sm overflow-hidden">
-          <button
-            type="button"
-            onClick={() => {
-              setTab("voidId");
-              setValidationError(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-              tab === "voidId"
-                ? "bg-void-gold/10 text-void-gold border-r border-void-gold/15"
-                : "text-white/30 hover:text-white/60 border-r border-void-gold/10"
-            }`}
-          >
-            <AtSign size={12} />
-            VOID ID
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab("handle");
-              setValidationError(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-              tab === "handle"
-                ? "bg-void-gold/10 text-void-gold"
-                : "text-white/30 hover:text-white/60"
-            }`}
-          >
-            <Search size={12} />
-            By Handle
-          </button>
-        </div>
+          {/* My VOID ID + copy */}
+          <div className="mb-5 p-3 bg-void-black/40 border border-void-gold/10">
+            <div className="text-white/30 text-xs mb-1">Your VOID ID</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-void-gold/70 text-xs font-mono truncate flex-1">
+                {voidId}
+              </div>
+              <button
+                type="button"
+                onClick={copyMyId}
+                aria-label="Copy my VOID ID"
+                className="shrink-0 flex items-center gap-1 text-xs text-void-gold/50 hover:text-void-gold transition-colors"
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
 
-        {/* Tab: By VOID ID */}
-        {tab === "voidId" && (
-          <div>
-            <label
-              htmlFor="dm-voidid-input"
-              className="block text-white/40 text-xs mb-2"
-            >
-              Enter VOID ID or short code
-            </label>
-            <input
-              id="dm-voidid-input"
-              type="text"
-              value={voidIdInput}
-              onChange={(e) => {
-                setVoidIdInput(e.target.value);
+          {/* Tabs */}
+          <div className="flex mb-5 border border-void-gold/15 rounded-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setTab("voidId");
                 setValidationError(null);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleVoidIdSubmit();
-              }}
-              placeholder="@void_shadow_xxxxxxxx:canister or short code"
-              className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm font-mono focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
-            />
-            {validationError && (
-              <p className="text-red-400/80 text-xs mb-3 leading-relaxed">
-                {validationError}
-              </p>
-            )}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
+                tab === "voidId"
+                  ? "bg-void-gold/10 text-void-gold border-r border-void-gold/15"
+                  : "text-white/30 hover:text-white/60 border-r border-void-gold/10"
+              }`}
+            >
+              <AtSign size={12} />
+              VOID ID
+            </button>
             <button
               type="button"
-              onClick={handleVoidIdSubmit}
-              disabled={!voidIdInput.trim() || creating}
-              className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50 mt-1"
+              onClick={() => {
+                setTab("handle");
+                setValidationError(null);
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
+                tab === "handle"
+                  ? "bg-void-gold/10 text-void-gold"
+                  : "text-white/30 hover:text-white/60"
+              }`}
             >
-              {creating ? "Opening channel..." : "Open Channel"}
+              <Search size={12} />
+              By Handle
             </button>
           </div>
-        )}
 
-        {/* Tab: By Cosmic Handle */}
-        {tab === "handle" && (
-          <div>
-            <label
-              htmlFor="dm-handle-input"
-              className="block text-white/40 text-xs mb-2"
-            >
-              Search cosmic handle
-            </label>
-            <input
-              id="dm-handle-input"
-              type="text"
-              value={handleInput}
-              onChange={(e) => setHandleInput(e.target.value)}
-              placeholder="Search @CosmicHandle..."
-              className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
-            />
+          {/* Tab: By VOID ID */}
+          {tab === "voidId" && (
+            <div>
+              <label
+                htmlFor="dm-voidid-input"
+                className="block text-white/40 text-xs mb-2"
+              >
+                Enter VOID ID or short code
+              </label>
+              <input
+                id="dm-voidid-input"
+                type="text"
+                value={voidIdInput}
+                onChange={(e) => {
+                  setVoidIdInput(e.target.value);
+                  setValidationError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleVoidIdSubmit();
+                }}
+                placeholder="@void_shadow_xxxxxxxx:canister or short code"
+                className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm font-mono focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
+              />
+              {validationError && (
+                <p className="text-red-400/80 text-xs mb-3 leading-relaxed">
+                  {validationError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleVoidIdSubmit}
+                disabled={!voidIdInput.trim() || creating}
+                className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50 mt-1"
+              >
+                {creating ? "Opening channel..." : "View Profile & Message"}
+              </button>
+            </div>
+          )}
 
-            {/* Results */}
-            {handleInput.trim() && searchResults.length === 0 && (
-              <p className="text-white/30 text-xs text-center py-4">
-                No travelers found with that handle. They must first appear in a
-                shared room.
-              </p>
-            )}
+          {/* Tab: By Cosmic Handle */}
+          {tab === "handle" && (
+            <div>
+              <label
+                htmlFor="dm-handle-input"
+                className="block text-white/40 text-xs mb-2"
+              >
+                Search cosmic handle
+              </label>
+              <input
+                id="dm-handle-input"
+                type="text"
+                value={handleInput}
+                onChange={(e) => setHandleInput(e.target.value)}
+                placeholder="Search @CosmicHandle..."
+                className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
+              />
 
-            {searchResults.length > 0 && (
-              <div className="border border-void-gold/10 max-h-48 overflow-y-auto">
-                {searchResults.map((user) => (
-                  <button
-                    key={user.voidId}
-                    type="button"
-                    onClick={() => handleSelectUser(user)}
-                    disabled={creating}
-                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-void-gold/5 border-b border-white/5 last:border-0 text-left transition-colors disabled:opacity-50"
-                  >
-                    <UserSearchAvatar voidId={user.voidId} />
-                    <div className="flex-1 min-w-0">
-                      {user.cosmicHandle && (
-                        <div className="text-void-gold/80 text-sm font-semibold truncate">
-                          {user.cosmicHandle}
-                        </div>
-                      )}
-                      <div className="text-white/40 text-xs font-mono truncate">
-                        {user.voidId}
+              {/* Results */}
+              {handleInput.trim() && searchResults.length === 0 && (
+                <p className="text-white/30 text-xs text-center py-4">
+                  No travelers found with that handle. They must first appear in
+                  a shared room.
+                </p>
+              )}
+
+              {searchResults.length > 0 && (
+                <div className="border border-void-gold/10 max-h-48 overflow-y-auto">
+                  {searchResults.map((user) => (
+                    <button
+                      key={user.voidId}
+                      type="button"
+                      onClick={() => handleSelectUser(user)}
+                      disabled={creating}
+                      className="w-full flex items-center gap-3 px-3 py-3 hover:bg-void-gold/5 border-b border-white/5 last:border-0 text-left transition-colors disabled:opacity-50"
+                    >
+                      <UserSearchAvatar voidId={user.voidId} />
+                      <div className="flex-1 min-w-0">
+                        {/* Handle as main title */}
+                        {user.cosmicHandle ? (
+                          <>
+                            <div className="text-void-gold font-bold text-sm truncate">
+                              @{user.cosmicHandle.replace(/^@/, "")}
+                            </div>
+                            <div className="text-white/30 text-xs font-mono truncate">
+                              {user.voidId}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-white/60 text-xs font-mono truncate">
+                            {user.voidId}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                      <Info size={12} className="text-void-gold/30 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            {!handleInput.trim() && (
-              <p className="text-white/25 text-xs text-center py-4 leading-relaxed">
-                Travelers you've shared rooms with will appear here.
-              </p>
-            )}
-          </div>
-        )}
+              {!handleInput.trim() && (
+                <p className="text-white/25 text-xs text-center py-4 leading-relaxed">
+                  Travelers you've shared rooms with will appear here.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Profile preview modal — shown when user clicks a search result */}
+      {previewVoidId && (
+        <UserProfileCard
+          voidId={previewVoidId}
+          onClose={() => setPreviewVoidId(null)}
+          onStartDM={() => {
+            setPreviewVoidId(null);
+            onCreate(previewVoidId);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -439,16 +467,19 @@ function DMPartnerName({ voidId }: { voidId: string }) {
 
   const handle = fetchedHandle ?? cachedHandle;
   const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
-  const displayName = handle
-    ? `@${handle.replace(/^@/, "")}`
-    : `void_${shortId}`;
 
   return (
     <div>
-      <div className="text-white/90 text-sm font-semibold truncate">
-        {displayName}
+      {/* Cosmic handle as main bold title */}
+      <div className="text-void-gold font-bold text-sm truncate">
+        {handle ? `@${handle.replace(/^@/, "")}` : `void_${shortId}`}
       </div>
-      <div className="text-white/30 text-xs font-mono truncate">{voidId}</div>
+      {/* VOID ID as small subtitle (only shown when handle exists) */}
+      {handle && (
+        <div className="text-white/30 text-xs font-mono truncate mt-0.5">
+          @void_{shortId}
+        </div>
+      )}
     </div>
   );
 }
@@ -481,6 +512,10 @@ export default function DMList() {
   const [showNewDM, setShowNewDM] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  // Profile card state for DM list entries
+  const [profileCardVoidId, setProfileCardVoidId] = useState<string | null>(
+    null,
+  );
 
   // Groups data
   const { data: groups = [], isLoading: groupsLoading } = useGetGroupsForVoidId(
@@ -637,30 +672,54 @@ export default function DMList() {
               : channelId;
             const isMe = partner === voidId;
             return (
-              <button
+              <div
                 key={channelId}
-                type="button"
-                onClick={() =>
-                  navigate({
-                    to: "/dms/$channelId",
-                    params: { channelId: encodeURIComponent(channelId) },
-                  })
-                }
-                className="w-full flex items-center gap-4 px-6 py-4 border-b border-white/5 hover:bg-void-gold/5 transition-colors text-left"
+                className="flex items-center border-b border-white/5 hover:bg-void-gold/5 transition-colors"
               >
-                <VoidAvatar
-                  voidId={partner}
-                  size="md"
-                  customAvatarUrl={
-                    isMe ? (myCustomAvatar ?? undefined) : undefined
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate({
+                      to: "/dms/$channelId",
+                      params: { channelId: encodeURIComponent(channelId) },
+                    })
                   }
-                />
-                <div className="flex-1 min-w-0">
-                  <DMPartnerName voidId={partner} />
-                </div>
-              </button>
+                  className="flex-1 flex items-center gap-4 px-6 py-4 text-left min-w-0"
+                >
+                  <VoidAvatar
+                    voidId={partner}
+                    size="md"
+                    customAvatarUrl={
+                      isMe ? (myCustomAvatar ?? undefined) : undefined
+                    }
+                  />
+                  <div className="flex-1 min-w-0">
+                    <DMPartnerName voidId={partner} />
+                  </div>
+                </button>
+                {/* View profile icon button */}
+                {!isMe && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileCardVoidId(partner)}
+                    aria-label="View profile"
+                    className="shrink-0 mr-4 p-2 text-white/20 hover:text-void-gold/60 transition-colors"
+                    title="View profile"
+                  >
+                    <Info size={14} />
+                  </button>
+                )}
+              </div>
             );
           })}
+
+          {/* Profile card for DM partner */}
+          {profileCardVoidId && (
+            <UserProfileCard
+              voidId={profileCardVoidId}
+              onClose={() => setProfileCardVoidId(null)}
+            />
+          )}
         </div>
       )}
 
