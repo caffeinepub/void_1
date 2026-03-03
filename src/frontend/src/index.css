@@ -263,6 +263,14 @@
     color: #ffd700;
   }
 
+  /* ─── Star Field Layer ───────────────────────────────────────── */
+  .star-field-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
   /* ─── Room Cards ──────────────────────────────────────────────── */
   .room-card-light {
     background: linear-gradient(
@@ -364,4 +372,215 @@
   font-size: 10px;
   background: #000;
   padding: 0 8px;
+}
+
+/* ─── Star Dust Float ────────────────────────────────────────────── */
+@keyframes starDustFloat {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--dust-opacity, 0.25);
+  }
+  90% {
+    opacity: var(--dust-opacity, 0.25);
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--dust-drift, 20px));
+    opacity: 0;
+  }
+}
+
+/* ─── Send Dust Burst ────────────────────────────────────────────── */
+@keyframes sendDustBurst {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+.send-dust-burst {
+  animation: sendDustBurst 0.6s ease-out forwards;
+}
+
+/* ─── Nebula Blob Shimmer Layer ──────────────────────────────────── */
+@keyframes nebulaBlobDrift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.5;
+  }
+  33% {
+    transform: translate(20px, -15px) scale(1.05);
+    opacity: 0.7;
+  }
+  66% {
+    transform: translate(-10px, 10px) scale(0.95);
+    opacity: 0.4;
+  }
+}
+
+.nebula-shimmer-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.nebula-blob-1 {
+  position: absolute;
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(
+    ellipse,
+    rgba(74, 0, 255, 0.1) 0%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  top: 10%;
+  left: -100px;
+  animation: nebulaBlobDrift 18s ease-in-out infinite;
+}
+
+.nebula-blob-2 {
+  position: absolute;
+  width: 500px;
+  height: 350px;
+  background: radial-gradient(
+    ellipse,
+    rgba(142, 45, 226, 0.08) 0%,
+    transparent 70%
+  );
+  filter: blur(50px);
+  top: 40%;
+  right: -80px;
+  animation: nebulaBlobDrift 22s ease-in-out infinite 3s;
+}
+
+.nebula-blob-3 {
+  position: absolute;
+  width: 400px;
+  height: 300px;
+  background: radial-gradient(
+    ellipse,
+    rgba(255, 215, 0, 0.05) 0%,
+    transparent 70%
+  );
+  filter: blur(70px);
+  bottom: 10%;
+  left: 30%;
+  animation: nebulaBlobDrift 25s ease-in-out infinite 6s;
+}
+
+@keyframes starTwinkle {
+  0%,
+  100% {
+    opacity: var(--star-op, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    opacity: calc(var(--star-op, 0.4) * 0.3);
+    transform: scale(0.7);
+  }
+}
+
+@keyframes starDrift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(2px, -3px);
+  }
+}
+
+/* ─── Polarity Garden ────────────────────────────────────────────── */
+@keyframes flowerFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+
+@keyframes flowerBloom {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.polarity-flower {
+  animation: flowerFloat 3s ease-in-out infinite;
+}
+
+.polarity-flower-bloom {
+  animation: flowerBloom 0.6s ease-out forwards;
+}
+
+/* ─── NFT Card Glow ──────────────────────────────────────────────── */
+@keyframes nftGlowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.15), 0 0 0 1px
+      rgba(255, 215, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.25), 0 0 0 1px
+      rgba(255, 215, 0, 0.35);
+  }
+}
+
+.nft-card-glow {
+  animation: nftGlowPulse 3s ease-in-out infinite;
+}
+
+/* ─── VOID Sage Orb ──────────────────────────────────────────────── */
+@keyframes sageOrbPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(142, 45, 226, 0.4), 0 0 40px
+      rgba(255, 215, 0, 0.15), inset 0 0 20px rgba(255, 215, 0, 0.1);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(142, 45, 226, 0.6), 0 0 60px
+      rgba(255, 215, 0, 0.25), inset 0 0 30px rgba(255, 215, 0, 0.15);
+    transform: scale(1.05);
+  }
+}
+
+.sage-orb {
+  animation: sageOrbPulse 2.5s ease-in-out infinite;
+}
+
+/* ─── Logo Float Animation ───────────────────────────────────────── */
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
 }

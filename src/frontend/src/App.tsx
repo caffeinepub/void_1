@@ -14,6 +14,7 @@ import Navigation from "./components/Navigation";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ProfileSetupModal from "./components/ProfileSetupModal";
 import SplashScreen from "./components/SplashScreen";
+import VoidSage from "./components/VoidSage";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
 import CreatorPortal from "./pages/CreatorPortal";
@@ -24,7 +25,9 @@ import GroupView from "./pages/GroupView";
 import InviteLanding from "./pages/InviteLanding";
 import LightRoom from "./pages/LightRoom";
 import MiningPage from "./pages/MiningPage";
+import NFTMarketplace from "./pages/NFTMarketplace";
 import ProfileSettings from "./pages/ProfileSettings";
+import ValueOfferings from "./pages/ValueOfferings";
 
 // Root layout component
 function RootLayout() {
@@ -91,6 +94,8 @@ function RootLayout() {
           <Outlet />
         </main>
       </div>
+      {/* VOID Sage — floating orb, appears on all authenticated screens */}
+      <VoidSage />
       <Toaster theme="dark" />
     </div>
   );
@@ -173,6 +178,18 @@ const groupViewRoute = createRoute({
   component: GroupView,
 });
 
+const nftRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/nft",
+  component: NFTMarketplace,
+});
+
+const offeringsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/offerings",
+  component: ValueOfferings,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   lightRoomRoute,
@@ -184,6 +201,8 @@ const routeTree = rootRoute.addChildren([
   inviteRoute,
   creatorRoute,
   groupViewRoute,
+  nftRoute,
+  offeringsRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -14,6 +14,21 @@ export type ChannelType = { 'dm' : string } |
   { 'darkRoom' : null } |
   { 'group' : string } |
   { 'lightRoom' : null };
+export interface CosmicNFT {
+  'id' : bigint,
+  'postText' : string,
+  'creator' : Principal,
+  'resonanceCount' : bigint,
+  'lineage' : Array<string>,
+  'rareTrait' : [] | [string],
+  'metadataJson' : string,
+  'creatorVoidId' : string,
+  'mintedAt' : bigint,
+  'wisdomScore' : bigint,
+  'category' : NFTCategory,
+  'priceVoid' : bigint,
+  'isForSale' : boolean,
+}
 export interface GroupInfo {
   'id' : string,
   'members' : Array<string>,
@@ -35,6 +50,14 @@ export interface Message {
 export type MessageType = { 'file' : null } |
   { 'text' : null } |
   { 'image' : null };
+export type NFTCategory = { 'guidedBreathwork' : null } |
+  { 'sageReflection' : null } |
+  { 'deepShadow' : null } |
+  { 'lightWisdom' : null };
+export type OfferingType = { 'art' : null } |
+  { 'wisdom' : null } |
+  { 'breathwork' : null } |
+  { 'oneOnOne' : null };
 export interface UserProfile {
   'voidId' : string,
   'cosmicHandle' : [] | [string],
@@ -42,6 +65,16 @@ export interface UserProfile {
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface ValueOffering {
+  'id' : string,
+  'title' : string,
+  'createdAt' : bigint,
+  'description' : string,
+  'creatorVoidId' : string,
+  'isActive' : boolean,
+  'offeringType' : OfferingType,
+  'priceVoid' : bigint,
+}
 export interface _CaffeineStorageCreateCertificateResult {
   'method' : string,
   'blob_hash' : string,
@@ -73,8 +106,14 @@ export interface _SERVICE {
   'addGroupMember' : ActorMethod<[string, string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'associateBlobWithMessage' : ActorMethod<[string, string, string], undefined>,
+  'buyNFT' : ActorMethod<[bigint, string], undefined>,
   'createDM' : ActorMethod<[string, string], string>,
   'createGroup' : ActorMethod<[string, string], string>,
+  'createValueOffering' : ActorMethod<
+    [string, string, bigint, OfferingType, string],
+    string
+  >,
+  'deactivateOffering' : ActorMethod<[string, string], undefined>,
   'generateInviteToken' : ActorMethod<[string], string>,
   'getAllGroups' : ActorMethod<[], Array<GroupInfo>>,
   'getAllUserProfiles' : ActorMethod<[], Array<UserProfile>>,
@@ -84,18 +123,34 @@ export interface _SERVICE {
   'getDailyReflection' : ActorMethod<[], [] | [string]>,
   'getGroupInfo' : ActorMethod<[string], [] | [GroupInfo]>,
   'getGroupsForVoidId' : ActorMethod<[string], Array<GroupInfo>>,
+  'getMarketplaceListings' : ActorMethod<
+    [[] | [NFTCategory]],
+    Array<CosmicNFT>
+  >,
   'getMessages' : ActorMethod<[string, bigint], Array<Message>>,
   'getMessagesByKeyword' : ActorMethod<
     [string, string, bigint],
     Array<Message>
   >,
+  'getMintablePost' : ActorMethod<[bigint], boolean>,
+  'getNFT' : ActorMethod<[bigint], [] | [CosmicNFT]>,
+  'getNFTsByCreator' : ActorMethod<[string], Array<CosmicNFT>>,
+  'getOfferingsByCreator' : ActorMethod<[string], Array<ValueOffering>>,
   'getPinnedMessage' : ActorMethod<[string], [] | [Message]>,
+  'getRoyaltiesEarned' : ActorMethod<[string], bigint>,
   'getSortedDMs' : ActorMethod<[], Array<ChannelType>>,
+  'getUserNFTs' : ActorMethod<[string], Array<CosmicNFT>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getValueOfferings' : ActorMethod<[], Array<ValueOffering>>,
   'getWisdomScore' : ActorMethod<[string], bigint>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'listChannels' : ActorMethod<[], Array<ChannelType>>,
+  'listNFTForSale' : ActorMethod<[bigint, bigint], undefined>,
   'loadOlderMessages' : ActorMethod<[string, bigint, bigint], Array<Message>>,
+  'mintNFT' : ActorMethod<
+    [string, bigint, string, NFTCategory, string, [] | [string]],
+    bigint
+  >,
   'pinMessage' : ActorMethod<[string, string], undefined>,
   'postMessage' : ActorMethod<
     [string, string, string, MessageType, [] | [string], [] | [string]],
@@ -113,7 +168,9 @@ export interface _SERVICE {
     ],
     undefined
   >,
+  'removeGroupMember' : ActorMethod<[string, string], undefined>,
   'resolveInviteToken' : ActorMethod<[string], [] | [string]>,
+  'resonateNFT' : ActorMethod<[bigint, string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setCosmicHandle' : ActorMethod<[string, string], undefined>,
   'setDailyReflection' : ActorMethod<[string], undefined>,

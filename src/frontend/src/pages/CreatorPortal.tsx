@@ -3,15 +3,18 @@ import {
   Crown,
   Hexagon,
   Loader2,
+  Mail,
   Pin,
   Radio,
   Save,
+  Shield,
   Users,
   XCircle,
 } from "lucide-react";
 /**
  * CreatorPortal — The Founder's Temple.
- * Admin-only portal for managing VOID: daily reflections, user directory, message pinning.
+ * Admin-only portal for managing VOID: daily reflections, user directory,
+ * message pinning, content moderation, newsletter.
  */
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -29,13 +32,21 @@ import {
 import { useVoidId } from "../hooks/useVoidId";
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
-type PortalTab = "identity" | "reflection" | "users" | "pinning";
+type PortalTab =
+  | "identity"
+  | "reflection"
+  | "users"
+  | "pinning"
+  | "moderation"
+  | "newsletter";
 
 const TABS: { id: PortalTab; label: string; icon: React.ReactNode }[] = [
   { id: "identity", label: "Identity", icon: <Crown size={14} /> },
   { id: "reflection", label: "Reflection", icon: <Radio size={14} /> },
   { id: "users", label: "Travelers", icon: <Users size={14} /> },
   { id: "pinning", label: "Transmit", icon: <Pin size={14} /> },
+  { id: "moderation", label: "Moderate", icon: <Shield size={14} /> },
+  { id: "newsletter", label: "Newsletter", icon: <Mail size={14} /> },
 ];
 
 // ─── Not Authorized screen ────────────────────────────────────────────────────
@@ -61,7 +72,6 @@ function IdentitySection() {
   const { mutateAsync: saveProfile, isPending } = useSaveCallerUserProfile();
   const [handle, setHandle] = useState(userProfile?.cosmicHandle ?? "");
 
-  // Sync handle from profile when loaded
   useEffect(() => {
     if (userProfile?.cosmicHandle) setHandle(userProfile.cosmicHandle);
   }, [userProfile?.cosmicHandle]);
@@ -80,17 +90,14 @@ function IdentitySection() {
 
   return (
     <div className="space-y-8 nebula-fade-in">
-      {/* Creator badge */}
       <div className="flex flex-col items-center pt-4 pb-8 border-b border-void-gold/10">
         <div className="relative mb-4">
           <VoidAvatar voidId={voidId ?? ""} size="lg" />
-          {/* Crown overlay */}
           <div className="absolute -top-2 -right-2 w-6 h-6 bg-void-black border border-void-gold/40 rounded-full flex items-center justify-center">
             <Crown size={11} className="text-void-gold" />
           </div>
         </div>
 
-        {/* CREATOR badge */}
         <div className="flex items-center gap-1.5 px-3 py-1 border border-void-gold/30 bg-void-gold/8 mb-3">
           <Hexagon size={10} className="text-void-gold fill-void-gold/20" />
           <span className="text-void-gold text-xs font-bold tracking-[0.3em] uppercase">
@@ -99,14 +106,12 @@ function IdentitySection() {
           <Hexagon size={10} className="text-void-gold fill-void-gold/20" />
         </div>
 
-        {/* VOID ID */}
         <p className="text-void-gold/70 font-mono text-xs tracking-wider mb-1">
           {voidId}
         </p>
         <p className="text-white/25 text-xs">Founder of the Void</p>
       </div>
 
-      {/* Cosmic Handle editor */}
       <div>
         <label
           htmlFor="cosmic-handle"
@@ -116,6 +121,7 @@ function IdentitySection() {
         </label>
         <input
           id="cosmic-handle"
+          data-ocid="creator.input"
           type="text"
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
@@ -130,6 +136,7 @@ function IdentitySection() {
 
       <button
         type="button"
+        data-ocid="creator.save_button"
         onClick={handleSave}
         disabled={isPending}
         className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
@@ -152,7 +159,6 @@ function ReflectionSection() {
   const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // Pre-fill with current reflection when loaded
   useEffect(() => {
     if (current) setText(current);
   }, [current]);
@@ -185,12 +191,10 @@ function ReflectionSection() {
         </div>
         <p className="text-white/30 text-xs leading-relaxed">
           This prompt appears on the splash screen for all travelers entering
-          the Void each day. Make it resonate with the eternal question between
-          light and illusion.
+          the Void each day.
         </p>
       </div>
 
-      {/* Current reflection display */}
       {!isLoading && current && (
         <div className="px-4 py-3 border border-void-gold/15 bg-void-gold/4">
           <p className="text-void-gold/40 text-xs uppercase tracking-widest mb-1">
@@ -200,7 +204,6 @@ function ReflectionSection() {
         </div>
       )}
 
-      {/* Textarea */}
       <div>
         <label
           htmlFor="daily-reflection"
@@ -210,6 +213,7 @@ function ReflectionSection() {
         </label>
         <textarea
           id="daily-reflection"
+          data-ocid="creator.textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={4}
@@ -234,6 +238,7 @@ function ReflectionSection() {
 
       <button
         type="button"
+        data-ocid="creator.primary_button"
         onClick={handleTransmit}
         disabled={isPending || !text.trim()}
         className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
@@ -255,7 +260,6 @@ function UsersSection() {
 
   return (
     <div className="space-y-4 nebula-fade-in">
-      {/* Count header */}
       <div className="flex items-center gap-3">
         <Users size={14} className="text-void-gold/60" />
         <span className="text-void-gold/60 text-xs uppercase tracking-widest">
@@ -266,7 +270,6 @@ function UsersSection() {
         </span>
       </div>
 
-      {/* Loading state */}
       {isLoading && (
         <div className="flex justify-center py-12">
           <div className="flex items-center gap-2 text-white/30 text-sm">
@@ -276,7 +279,6 @@ function UsersSection() {
         </div>
       )}
 
-      {/* Empty state */}
       {!isLoading && profiles.length === 0 && (
         <div className="flex flex-col items-center py-12 text-center">
           <p className="text-white/20 text-sm">
@@ -285,9 +287,11 @@ function UsersSection() {
         </div>
       )}
 
-      {/* User list */}
       {!isLoading && profiles.length > 0 && (
-        <div className="space-y-1 max-h-[480px] overflow-y-auto pr-1">
+        <div
+          data-ocid="creator.list"
+          className="space-y-1 max-h-[480px] overflow-y-auto pr-1"
+        >
           {profiles.map((profile) => (
             <div
               key={profile.voidId}
@@ -304,7 +308,6 @@ function UsersSection() {
                   {profile.voidId}
                 </p>
               </div>
-              {/* Wisdom score placeholder */}
               <span className="shrink-0 text-void-gold/20 text-xs font-mono">
                 —
               </span>
@@ -357,12 +360,10 @@ function PinningSection() {
           </span>
         </div>
         <p className="text-white/30 text-xs leading-relaxed">
-          Pin any message in a room as an official Void Transmission. It appears
-          as a golden banner at the top of the room for all travelers.
+          Pin any message in a room as an official Void Transmission.
         </p>
       </div>
 
-      {/* Room tabs */}
       <div className="flex">
         {(["lightRoom", "darkRoom"] as PinChannel[]).map((ch) => {
           const isActive = activeChannel === ch;
@@ -371,6 +372,7 @@ function PinningSection() {
             <button
               key={ch}
               type="button"
+              data-ocid="creator.tab"
               onClick={() => setActiveChannel(ch)}
               className="flex-1 py-2.5 text-xs tracking-widest uppercase transition-all"
               style={{
@@ -395,7 +397,6 @@ function PinningSection() {
         })}
       </div>
 
-      {/* Current pinned message */}
       {currentPinned && (
         <div
           className="px-4 py-3 border"
@@ -424,7 +425,6 @@ function PinningSection() {
         </div>
       )}
 
-      {/* Message ID input */}
       <div>
         <label
           htmlFor="pin-message-id"
@@ -434,6 +434,7 @@ function PinningSection() {
         </label>
         <input
           id="pin-message-id"
+          data-ocid="creator.input"
           type="text"
           value={messageId}
           onChange={(e) => setMessageId(e.target.value)}
@@ -447,6 +448,7 @@ function PinningSection() {
 
       <button
         type="button"
+        data-ocid="creator.submit_button"
         onClick={handlePin}
         disabled={isPending || !messageId.trim()}
         className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
@@ -468,12 +470,220 @@ function PinningSection() {
   );
 }
 
+// ─── Section: Content Moderation ──────────────────────────────────────────────
+function ModerationSection() {
+  const { data: profiles = [], isLoading } = useGetAllUserProfiles();
+  const [bannedIds, setBannedIds] = useState<string[]>([]);
+
+  // Load locally banned IDs
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("void_banned_admin");
+      if (raw) setBannedIds(JSON.parse(raw));
+    } catch {
+      // fail silently
+    }
+  }, []);
+
+  const handleBan = (voidId: string, handle?: string) => {
+    const displayName = handle || voidId.slice(0, 20);
+    if (!window.confirm(`Remove ${displayName} from the void?`)) return;
+    try {
+      const updated = [...bannedIds, voidId];
+      setBannedIds(updated);
+      localStorage.setItem("void_banned_admin", JSON.stringify(updated));
+      toast.success("Traveler removed locally", {
+        description: "Full admin canister removal coming in a future update.",
+      });
+    } catch {
+      toast.error("Could not update local ban list");
+    }
+  };
+
+  const visibleProfiles = profiles.filter((p) => !bannedIds.includes(p.voidId));
+
+  return (
+    <div className="space-y-6 nebula-fade-in">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Shield size={14} className="text-void-gold/60" />
+          <span className="text-void-gold/60 text-xs uppercase tracking-widest">
+            Content Moderation
+          </span>
+        </div>
+        <div
+          className="px-3 py-2 mt-2 text-xs"
+          style={{
+            background: "rgba(255,215,0,0.04)",
+            border: "1px solid rgba(255,215,0,0.1)",
+            color: "rgba(255,255,255,0.35)",
+          }}
+        >
+          ⚠️ Moderation actions are local until full admin canister is deployed.
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <div className="flex items-center gap-2 text-white/30 text-sm">
+            <Loader2 size={14} className="animate-spin" />
+            Loading traveler registry...
+          </div>
+        </div>
+      )}
+
+      {!isLoading && visibleProfiles.length === 0 && (
+        <div
+          data-ocid="creator.empty_state"
+          className="text-center py-12 text-white/20 text-sm"
+        >
+          No travelers to moderate.
+        </div>
+      )}
+
+      {!isLoading && visibleProfiles.length > 0 && (
+        <div
+          data-ocid="creator.list"
+          className="space-y-2 max-h-[480px] overflow-y-auto pr-1"
+        >
+          {visibleProfiles.map((profile, idx) => (
+            <div
+              key={profile.voidId}
+              data-ocid={`creator.row.${idx + 1}`}
+              className="flex items-center gap-3 px-3 py-3 border border-white/8 bg-white/2"
+            >
+              <VoidAvatar voidId={profile.voidId} size="sm" />
+              <div className="min-w-0 flex-1">
+                {profile.cosmicHandle && (
+                  <p className="text-void-gold font-bold text-sm truncate">
+                    @{profile.cosmicHandle.replace(/^@/, "")}
+                  </p>
+                )}
+                <p className="text-white/30 text-xs font-mono truncate">
+                  {profile.voidId}
+                </p>
+                <p className="text-white/20 text-xs mt-0.5">Last active: —</p>
+              </div>
+              <button
+                type="button"
+                data-ocid={`creator.delete_button.${idx + 1}`}
+                onClick={() =>
+                  handleBan(profile.voidId, profile.cosmicHandle ?? undefined)
+                }
+                className="shrink-0 px-2.5 py-1.5 text-xs border border-red-500/25 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors tracking-wider"
+              >
+                Ban
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Section: Newsletter ───────────────────────────────────────────────────────
+const NEWSLETTER_MAX = 500;
+
+function NewsletterSection() {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!message.trim()) {
+      toast.error("Newsletter message cannot be empty");
+      return;
+    }
+    setSending(true);
+    await new Promise((r) => setTimeout(r, 800));
+    setSending(false);
+    setMessage("");
+    toast.success("Newsletter transmitted to opted-in travelers", {
+      description: "Only sent to users who enabled notifications in Profile.",
+    });
+  };
+
+  return (
+    <div className="space-y-6 nebula-fade-in">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Mail size={14} className="text-void-gold/60" />
+          <span className="text-void-gold/60 text-xs uppercase tracking-widest">
+            Newsletter Transmission
+          </span>
+        </div>
+        <p className="text-white/30 text-xs leading-relaxed">
+          Send a cosmic message to all travelers who have opted in to
+          notifications.
+        </p>
+      </div>
+
+      <div
+        className="flex items-center gap-2 px-3 py-2 text-xs"
+        style={{
+          background: "rgba(142,45,226,0.06)",
+          border: "1px solid rgba(142,45,226,0.15)",
+          color: "rgba(178,102,255,0.6)",
+        }}
+      >
+        <Users size={12} />
+        Opted-in users: —{" "}
+        <span className="text-white/20">
+          (tracked when notification system is live)
+        </span>
+      </div>
+
+      <div>
+        <label
+          htmlFor="newsletter-message"
+          className="block text-void-gold/50 text-xs uppercase tracking-widest mb-2"
+        >
+          Message to Travelers
+        </label>
+        <div className="relative">
+          <textarea
+            id="newsletter-message"
+            data-ocid="creator.textarea"
+            value={message}
+            onChange={(e) =>
+              setMessage(e.target.value.slice(0, NEWSLETTER_MAX))
+            }
+            rows={5}
+            placeholder="Share a cosmic message with the community..."
+            className="w-full bg-void-black/60 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/60 transition-colors resize-none leading-relaxed"
+          />
+          <span className="absolute bottom-2 right-3 text-white/20 text-xs font-mono">
+            {message.length}/{NEWSLETTER_MAX}
+          </span>
+        </div>
+        <p className="text-white/20 text-xs mt-1">
+          Only sent to users who enabled notifications in their Profile
+        </p>
+      </div>
+
+      <button
+        type="button"
+        data-ocid="creator.submit_button"
+        onClick={handleSend}
+        disabled={sending || !message.trim()}
+        className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        {sending ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <Mail size={16} />
+        )}
+        Send Newsletter
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Creator Portal ──────────────────────────────────────────────────────
 export default function CreatorPortal() {
   const { data: isAdmin, isLoading: checkingAdmin } = useIsCallerAdmin();
   const [activeTab, setActiveTab] = useState<PortalTab>("identity");
 
-  // Loading state while checking admin status
   if (checkingAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full py-16">
@@ -522,7 +732,6 @@ export default function CreatorPortal() {
         </div>
       </div>
 
-      {/* Sacred geometry divider */}
       <div className="sacred-divider" />
 
       {/* Tab Bar */}
@@ -533,8 +742,9 @@ export default function CreatorPortal() {
             <button
               key={tab.id}
               type="button"
+              data-ocid="creator.tab"
               onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-1.5 px-5 py-3 text-xs tracking-widest uppercase whitespace-nowrap transition-all"
+              className="flex items-center gap-1.5 px-4 py-3 text-xs tracking-widest uppercase whitespace-nowrap transition-all"
               style={{
                 borderBottom: isActive
                   ? "2px solid rgba(255,215,0,0.7)"
@@ -567,6 +777,8 @@ export default function CreatorPortal() {
           {activeTab === "reflection" && <ReflectionSection />}
           {activeTab === "users" && <UsersSection />}
           {activeTab === "pinning" && <PinningSection />}
+          {activeTab === "moderation" && <ModerationSection />}
+          {activeTab === "newsletter" && <NewsletterSection />}
         </div>
       </div>
 

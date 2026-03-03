@@ -83,10 +83,26 @@ export default function ChatView({
   const [pendingPlaintext, setPendingPlaintext] = useState<Map<string, string>>(
     new Map(),
   );
+  // Locally deleted message IDs (from localStorage void_deleted_{channel})
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   // Fetch pinned message for public rooms
   const isPublicRoom = channelType !== "dm";
   useGetPinnedMessage(isPublicRoom ? channel : "");
+
+  // ─── Load deleted message IDs from localStorage ───────────────────────────
+  useEffect(() => {
+    try {
+      const deletedKey = `void_deleted_${channel}`;
+      const raw = localStorage.getItem(deletedKey);
+      if (raw) {
+        const ids: string[] = JSON.parse(raw);
+        setDeletedIds(new Set(ids));
+      }
+    } catch {
+      // fail silently
+    }
+  }, [channel]);
 
   // ─── Combined decryption effect — fires whenever isReady, messages, or olderMessages change ──
   useEffect(() => {
@@ -195,6 +211,8 @@ export default function ChatView({
     const rootMessages: Message[] = [];
 
     for (const msg of allMessages) {
+      // Skip locally deleted messages
+      if (deletedIds.has(msg.id)) continue;
       if (msg.replyTo) {
         const existing = replyMap.get(msg.replyTo) ?? [];
         replyMap.set(msg.replyTo, [...existing, msg]);
@@ -204,7 +222,7 @@ export default function ChatView({
     }
 
     return { rootMessages, replyMap };
-  }, [messages, olderMessages]);
+  }, [messages, olderMessages, deletedIds]);
 
   // ─── Keyword filter ───────────────────────────────────────────────────────────
   const showFilterBar = channelType !== "dm";
@@ -371,16 +389,47 @@ export default function ChatView({
 
         {!isLoading && rootMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-4">
-              {channelType === "lightRoom"
-                ? "☀️"
-                : channelType === "darkRoom"
-                  ? "🌑"
-                  : "💬"}
-            </div>
-            <p className="text-white/30 text-sm">
-              The void awaits your first message.
-            </p>
+            {channelType === "lightRoom" ? (
+              <>
+                <div className="text-4xl mb-4">☀️</div>
+                <p
+                  className="text-sm italic"
+                  style={{ color: "rgba(255,215,0,0.45)" }}
+                >
+                  Decrypting the void…
+                </p>
+                <p className="text-white/20 text-xs mt-2">
+                  Be the first to share wisdom.
+                </p>
+              </>
+            ) : channelType === "darkRoom" ? (
+              <>
+                <div
+                  className="text-3xl mb-3"
+                  style={{
+                    filter: "drop-shadow(0 0 10px rgba(142,45,226,0.5))",
+                  }}
+                >
+                  🔒
+                </div>
+                <p
+                  className="text-sm italic"
+                  style={{ color: "rgba(142,45,226,0.6)" }}
+                >
+                  Sealed wisdom awaits...
+                </p>
+                <p className="text-white/20 text-xs mt-2">
+                  Speak your shadow. Dissolve the illusion.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-4xl mb-4">💬</div>
+                <p className="text-white/30 text-sm">
+                  The void awaits your first message.
+                </p>
+              </>
+            )}
           </div>
         )}
 

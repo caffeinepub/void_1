@@ -24,6 +24,12 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const OfferingType = IDL.Variant({
+  'art' : IDL.Null,
+  'wisdom' : IDL.Null,
+  'breathwork' : IDL.Null,
+  'oneOnOne' : IDL.Null,
+});
 export const GroupInfo = IDL.Record({
   'id' : IDL.Text,
   'members' : IDL.Vec(IDL.Text),
@@ -34,6 +40,27 @@ export const GroupInfo = IDL.Record({
 export const UserProfile = IDL.Record({
   'voidId' : IDL.Text,
   'cosmicHandle' : IDL.Opt(IDL.Text),
+});
+export const NFTCategory = IDL.Variant({
+  'guidedBreathwork' : IDL.Null,
+  'sageReflection' : IDL.Null,
+  'deepShadow' : IDL.Null,
+  'lightWisdom' : IDL.Null,
+});
+export const CosmicNFT = IDL.Record({
+  'id' : IDL.Nat,
+  'postText' : IDL.Text,
+  'creator' : IDL.Principal,
+  'resonanceCount' : IDL.Nat,
+  'lineage' : IDL.Vec(IDL.Text),
+  'rareTrait' : IDL.Opt(IDL.Text),
+  'metadataJson' : IDL.Text,
+  'creatorVoidId' : IDL.Text,
+  'mintedAt' : IDL.Int,
+  'wisdomScore' : IDL.Nat,
+  'category' : NFTCategory,
+  'priceVoid' : IDL.Nat,
+  'isForSale' : IDL.Bool,
 });
 export const MessageType = IDL.Variant({
   'file' : IDL.Null,
@@ -50,6 +77,16 @@ export const Message = IDL.Record({
   'timestamp' : IDL.Int,
   'blobId' : IDL.Opt(IDL.Text),
   'replyTo' : IDL.Opt(IDL.Text),
+});
+export const ValueOffering = IDL.Record({
+  'id' : IDL.Text,
+  'title' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'description' : IDL.Text,
+  'creatorVoidId' : IDL.Text,
+  'isActive' : IDL.Bool,
+  'offeringType' : OfferingType,
+  'priceVoid' : IDL.Nat,
 });
 export const ChannelType = IDL.Variant({
   'dm' : IDL.Text,
@@ -89,8 +126,15 @@ export const idlService = IDL.Service({
   'addGroupMember' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'associateBlobWithMessage' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'buyNFT' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'createGroup' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'createValueOffering' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, OfferingType, IDL.Text],
+      [IDL.Text],
+      [],
+    ),
+  'deactivateOffering' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
   'getAllGroups' : IDL.Func([], [IDL.Vec(GroupInfo)], ['query']),
   'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
@@ -100,26 +144,48 @@ export const idlService = IDL.Service({
   'getDailyReflection' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
   'getGroupInfo' : IDL.Func([IDL.Text], [IDL.Opt(GroupInfo)], ['query']),
   'getGroupsForVoidId' : IDL.Func([IDL.Text], [IDL.Vec(GroupInfo)], ['query']),
+  'getMarketplaceListings' : IDL.Func(
+      [IDL.Opt(NFTCategory)],
+      [IDL.Vec(CosmicNFT)],
+      ['query'],
+    ),
   'getMessages' : IDL.Func([IDL.Text, IDL.Nat], [IDL.Vec(Message)], ['query']),
   'getMessagesByKeyword' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat],
       [IDL.Vec(Message)],
       ['query'],
     ),
+  'getMintablePost' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
+  'getNFT' : IDL.Func([IDL.Nat], [IDL.Opt(CosmicNFT)], ['query']),
+  'getNFTsByCreator' : IDL.Func([IDL.Text], [IDL.Vec(CosmicNFT)], ['query']),
+  'getOfferingsByCreator' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(ValueOffering)],
+      ['query'],
+    ),
   'getPinnedMessage' : IDL.Func([IDL.Text], [IDL.Opt(Message)], ['query']),
+  'getRoyaltiesEarned' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
   'getSortedDMs' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
+  'getUserNFTs' : IDL.Func([IDL.Text], [IDL.Vec(CosmicNFT)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'getValueOfferings' : IDL.Func([], [IDL.Vec(ValueOffering)], ['query']),
   'getWisdomScore' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'listChannels' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
+  'listNFTForSale' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'loadOlderMessages' : IDL.Func(
       [IDL.Text, IDL.Int, IDL.Nat],
       [IDL.Vec(Message)],
       ['query'],
+    ),
+  'mintNFT' : IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Text, NFTCategory, IDL.Text, IDL.Opt(IDL.Text)],
+      [IDL.Nat],
+      [],
     ),
   'pinMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'postMessage' : IDL.Func(
@@ -147,7 +213,9 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'removeGroupMember' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'resolveInviteToken' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+  'resonateNFT' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setCosmicHandle' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'setDailyReflection' : IDL.Func([IDL.Text], [], []),
@@ -173,6 +241,12 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const OfferingType = IDL.Variant({
+    'art' : IDL.Null,
+    'wisdom' : IDL.Null,
+    'breathwork' : IDL.Null,
+    'oneOnOne' : IDL.Null,
+  });
   const GroupInfo = IDL.Record({
     'id' : IDL.Text,
     'members' : IDL.Vec(IDL.Text),
@@ -183,6 +257,27 @@ export const idlFactory = ({ IDL }) => {
   const UserProfile = IDL.Record({
     'voidId' : IDL.Text,
     'cosmicHandle' : IDL.Opt(IDL.Text),
+  });
+  const NFTCategory = IDL.Variant({
+    'guidedBreathwork' : IDL.Null,
+    'sageReflection' : IDL.Null,
+    'deepShadow' : IDL.Null,
+    'lightWisdom' : IDL.Null,
+  });
+  const CosmicNFT = IDL.Record({
+    'id' : IDL.Nat,
+    'postText' : IDL.Text,
+    'creator' : IDL.Principal,
+    'resonanceCount' : IDL.Nat,
+    'lineage' : IDL.Vec(IDL.Text),
+    'rareTrait' : IDL.Opt(IDL.Text),
+    'metadataJson' : IDL.Text,
+    'creatorVoidId' : IDL.Text,
+    'mintedAt' : IDL.Int,
+    'wisdomScore' : IDL.Nat,
+    'category' : NFTCategory,
+    'priceVoid' : IDL.Nat,
+    'isForSale' : IDL.Bool,
   });
   const MessageType = IDL.Variant({
     'file' : IDL.Null,
@@ -199,6 +294,16 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : IDL.Int,
     'blobId' : IDL.Opt(IDL.Text),
     'replyTo' : IDL.Opt(IDL.Text),
+  });
+  const ValueOffering = IDL.Record({
+    'id' : IDL.Text,
+    'title' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'description' : IDL.Text,
+    'creatorVoidId' : IDL.Text,
+    'isActive' : IDL.Bool,
+    'offeringType' : OfferingType,
+    'priceVoid' : IDL.Nat,
   });
   const ChannelType = IDL.Variant({
     'dm' : IDL.Text,
@@ -242,8 +347,15 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'buyNFT' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'createDM' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'createGroup' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'createValueOffering' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, OfferingType, IDL.Text],
+        [IDL.Text],
+        [],
+      ),
+    'deactivateOffering' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'generateInviteToken' : IDL.Func([IDL.Text], [IDL.Text], []),
     'getAllGroups' : IDL.Func([], [IDL.Vec(GroupInfo)], ['query']),
     'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserProfile)], ['query']),
@@ -257,6 +369,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(GroupInfo)],
         ['query'],
       ),
+    'getMarketplaceListings' : IDL.Func(
+        [IDL.Opt(NFTCategory)],
+        [IDL.Vec(CosmicNFT)],
+        ['query'],
+      ),
     'getMessages' : IDL.Func(
         [IDL.Text, IDL.Nat],
         [IDL.Vec(Message)],
@@ -267,20 +384,37 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Message)],
         ['query'],
       ),
+    'getMintablePost' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
+    'getNFT' : IDL.Func([IDL.Nat], [IDL.Opt(CosmicNFT)], ['query']),
+    'getNFTsByCreator' : IDL.Func([IDL.Text], [IDL.Vec(CosmicNFT)], ['query']),
+    'getOfferingsByCreator' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(ValueOffering)],
+        ['query'],
+      ),
     'getPinnedMessage' : IDL.Func([IDL.Text], [IDL.Opt(Message)], ['query']),
+    'getRoyaltiesEarned' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
     'getSortedDMs' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
+    'getUserNFTs' : IDL.Func([IDL.Text], [IDL.Vec(CosmicNFT)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'getValueOfferings' : IDL.Func([], [IDL.Vec(ValueOffering)], ['query']),
     'getWisdomScore' : IDL.Func([IDL.Text], [IDL.Nat], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'listChannels' : IDL.Func([], [IDL.Vec(ChannelType)], ['query']),
+    'listNFTForSale' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'loadOlderMessages' : IDL.Func(
         [IDL.Text, IDL.Int, IDL.Nat],
         [IDL.Vec(Message)],
         ['query'],
+      ),
+    'mintNFT' : IDL.Func(
+        [IDL.Text, IDL.Nat, IDL.Text, NFTCategory, IDL.Text, IDL.Opt(IDL.Text)],
+        [IDL.Nat],
+        [],
       ),
     'pinMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'postMessage' : IDL.Func(
@@ -308,7 +442,9 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'removeGroupMember' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'resolveInviteToken' : IDL.Func([IDL.Text], [IDL.Opt(IDL.Text)], ['query']),
+    'resonateNFT' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setCosmicHandle' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'setDailyReflection' : IDL.Func([IDL.Text], [], []),

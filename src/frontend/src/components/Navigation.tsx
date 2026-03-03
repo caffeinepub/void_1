@@ -1,16 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 /**
  * Navigation — Sidebar (desktop), drawer + bottom nav (mobile).
- * Adds Mining nav item and Invite button.
+ * Adds NFT, Offerings, Mining and Invite button.
  */
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Crown,
+  Gift,
   LogOut,
   Menu,
   MessageSquare,
   Moon,
   Share2,
+  Sparkles,
   Sun,
   User,
   X,
@@ -23,7 +25,31 @@ import { useGetCallerUserProfile, useIsCallerAdmin } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import InviteModal from "./InviteModal";
 
-// ─── Base navigation items (always shown) ────────────────────────────────────
+// ─── Bottom nav items (mobile — max 5) ───────────────────────────────────────
+const BOTTOM_NAV_ITEMS = [
+  {
+    path: "/light-room",
+    label: "Light",
+    icon: Sun,
+    color: "text-void-gold",
+  },
+  {
+    path: "/dark-room",
+    label: "Dark",
+    icon: Moon,
+    color: "text-void-purple",
+  },
+  {
+    path: "/dms",
+    label: "Messages",
+    icon: MessageSquare,
+    color: "text-white/70",
+  },
+  { path: "/mining", label: "Mining", icon: Zap, color: "text-void-gold" },
+  { path: "/nft", label: "NFT", icon: Sparkles, color: "text-void-purple" },
+];
+
+// ─── Full sidebar nav items ───────────────────────────────────────────────────
 const BASE_NAV_ITEMS = [
   {
     path: "/light-room",
@@ -44,6 +70,18 @@ const BASE_NAV_ITEMS = [
     color: "text-white/70",
   },
   { path: "/mining", label: "Mining", icon: Zap, color: "text-void-gold" },
+  {
+    path: "/nft",
+    label: "NFT Marketplace",
+    icon: Sparkles,
+    color: "text-void-purple",
+  },
+  {
+    path: "/offerings",
+    label: "Value Offerings",
+    icon: Gift,
+    color: "text-white/70",
+  },
   { path: "/profile", label: "Profile", icon: User, color: "text-white/70" },
 ];
 
@@ -275,20 +313,57 @@ export default function Navigation() {
       )}
 
       {/* ── Mobile Bottom Nav ─────────────────────────────────────────────────── */}
-      {/* Limit to BASE_NAV_ITEMS only (max 5); Creator is accessible via the drawer menu */}
+      {/* 5 items: Light, Dark, Messages, Mining, NFT — Profile/Creator via drawer */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-void-black/95 border-t border-void-gold/10 flex">
-        {BASE_NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+        {BOTTOM_NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
           const isActive = currentPath === path;
+          const isDarkTab = path === "/dark-room";
+          const isLightTab = path === "/light-room";
+          const activeColor = isDarkTab
+            ? "text-void-purple"
+            : isLightTab
+              ? "text-void-gold"
+              : "text-void-gold";
           return (
             <button
               key={path}
               type="button"
+              data-ocid="nav.link"
               onClick={() => handleNav(path)}
               className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs transition-colors ${
-                isActive ? "text-void-gold" : "text-white/30"
+                isActive ? activeColor : "text-white/30"
               }`}
+              style={
+                isActive
+                  ? {
+                      borderTop: isDarkTab
+                        ? "2px solid rgba(142,45,226,0.7)"
+                        : isLightTab
+                          ? "2px solid rgba(255,215,0,0.7)"
+                          : "2px solid rgba(255,215,0,0.5)",
+                    }
+                  : { borderTop: "2px solid transparent" }
+              }
             >
-              <Icon size={18} />
+              <Icon
+                size={18}
+                className={
+                  isActive
+                    ? isDarkTab
+                      ? "text-void-purple"
+                      : "text-void-gold"
+                    : color
+                }
+                style={
+                  isActive
+                    ? {
+                        filter: isDarkTab
+                          ? "drop-shadow(0 0 6px rgba(142,45,226,0.8))"
+                          : "drop-shadow(0 0 6px rgba(255,215,0,0.8))",
+                      }
+                    : undefined
+                }
+              />
               <span className="tracking-wide">{label}</span>
             </button>
           );

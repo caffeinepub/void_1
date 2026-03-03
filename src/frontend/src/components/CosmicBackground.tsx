@@ -175,12 +175,74 @@ function ShootingStars() {
   );
 }
 
+// ─── Star Dust Particles ──────────────────────────────────────────────────────
+interface DustParticle {
+  id: string;
+  x: number; // % from left
+  size: number; // px
+  color: string; // gold or purple
+  opacity: number;
+  duration: number; // seconds for full float
+  delay: number; // animation delay
+  drift: number; // horizontal drift px
+}
+
+function generateDustParticles(count: number): DustParticle[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `dust-${i}`,
+    x: seededRandom(i * 31 + 7) * 100,
+    size: 1.5 + seededRandom(i * 17 + 3) * 2,
+    color: seededRandom(i * 23 + 11) < 0.6 ? "#FFD700" : "#8e2de2",
+    opacity: 0.2 + seededRandom(i * 41 + 5) * 0.35,
+    duration: 10 + seededRandom(i * 37 + 9) * 14,
+    delay: seededRandom(i * 29 + 13) * -20, // negative = start mid-animation
+    drift: (seededRandom(i * 43 + 7) - 0.5) * 80,
+  }));
+}
+
+const DUST_PARTICLES = generateDustParticles(80);
+
+function StarDustLayer() {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 1,
+        overflow: "hidden",
+      }}
+    >
+      {DUST_PARTICLES.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: "absolute",
+            left: `${p.x}%`,
+            bottom: "-10px",
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            borderRadius: "50%",
+            backgroundColor: p.color,
+            boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+            ["--dust-opacity" as string]: p.opacity.toString(),
+            ["--dust-drift" as string]: `${p.drift}px`,
+            animation: `starDustFloat ${p.duration}s linear ${p.delay}s infinite`,
+            willChange: "transform, opacity",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
  * CosmicBackground — renders behind everything:
  *  • Solid void-black base
  *  • Animated nebula blobs (CSS)
  *  • 160 twinkling CSS stars
  *  • Canvas shooting-star layer
+ *  • Star dust floating particles
  */
 const CosmicBackground = memo(function CosmicBackground() {
   return (
@@ -211,6 +273,9 @@ const CosmicBackground = memo(function CosmicBackground() {
 
       {/* Shooting stars canvas */}
       <ShootingStars />
+
+      {/* Star dust floating particles */}
+      <StarDustLayer />
     </>
   );
 });
