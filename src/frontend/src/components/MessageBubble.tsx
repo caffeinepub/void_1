@@ -35,6 +35,8 @@ interface MessageBubbleProps {
   decryptedReplies?: Map<string, string | null | undefined>;
   depth?: number;
   onUpvote?: () => void;
+  /** Position index for data-ocid markers (1-based) */
+  msgIndex?: number;
 }
 
 interface BookmarkEntry {
@@ -112,6 +114,7 @@ export default function MessageBubble({
   decryptedReplies,
   depth = 0,
   onUpvote,
+  msgIndex,
 }: MessageBubbleProps) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(true);
@@ -119,6 +122,7 @@ export default function MessageBubble({
   const [bookmarked, setBookmarked] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isOwn = message.senderVoidId === currentVoidId;
   const isPublicRoom =
@@ -173,29 +177,48 @@ export default function MessageBubble({
     }
   }, [message.id, currentVoidId, channel]);
 
+  // DM bubbles: own = right-aligned gold border, others = left-aligned purple border
+  // Room bubbles: own = room-color, others = neutral dark
   const bubbleClass = isOwn
     ? isLightRoom
       ? "bg-gradient-to-br from-void-gold/30 to-void-gold-dark/20 border border-void-gold/40 ml-auto"
       : isDarkRoom
         ? "bg-gradient-to-br from-void-purple/30 to-void-purple-dark/20 border border-void-purple/40 ml-auto"
-        : "bg-gradient-to-br from-void-gold/20 to-void-purple/20 border border-void-gold/30 ml-auto"
-    : "bg-void-black/60 border border-white/10";
+        : /* DM own */ "bg-gradient-to-br from-void-gold/25 to-void-gold-dark/15 border border-void-gold/50 ml-auto"
+    : /* others */
+      isDarkRoom
+      ? "bg-void-black/60 border border-void-purple/20"
+      : /* lightRoom or DM */ "bg-void-black/60 border border-void-purple/25";
 
-  // ─── Upvote handler with localStorage persistence ─────────────────────────
+  // ─── Upvote handler — toggleable (can undo) ─────────────────────────────
   const handleUpvote = () => {
-    if (upvoteLocal) return;
-    setUpvoteLocal(true);
-    onUpvote?.();
-    try {
-      const upvotedKey = `void_upvoted_${currentVoidId}`;
-      const raw = localStorage.getItem(upvotedKey);
-      const ids: string[] = raw ? JSON.parse(raw) : [];
-      if (!ids.includes(message.id)) {
-        ids.push(message.id);
-        localStorage.setItem(upvotedKey, JSON.stringify(ids));
+    if (upvoteLocal) {
+      // Undo upvote
+      setUpvoteLocal(false);
+      try {
+        const upvotedKey = `void_upvoted_${currentVoidId}`;
+        const raw = localStorage.getItem(upvotedKey);
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        const filtered = ids.filter((id) => id !== message.id);
+        localStorage.setItem(upvotedKey, JSON.stringify(filtered));
+      } catch {
+        // fail silently
       }
-    } catch {
-      // fail silently
+    } else {
+      // Add upvote
+      setUpvoteLocal(true);
+      onUpvote?.();
+      try {
+        const upvotedKey = `void_upvoted_${currentVoidId}`;
+        const raw = localStorage.getItem(upvotedKey);
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        if (!ids.includes(message.id)) {
+          ids.push(message.id);
+          localStorage.setItem(upvotedKey, JSON.stringify(ids));
+        }
+      } catch {
+        // fail silently
+      }
     }
   };
 
@@ -228,9 +251,12 @@ export default function MessageBubble({
     }
   };
 
-  // ─── Delete own message ───────────────────────────────────────────────────
+  // ─── Delete own message (inline confirmation) ────────────────────────────
   const handleDelete = () => {
-    if (!window.confirm("Delete this message from your view?")) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
     try {
       const deletedKey = `void_deleted_${channel}`;
       const raw = localStorage.getItem(deletedKey);
@@ -243,6 +269,11 @@ export default function MessageBubble({
     } catch {
       setIsDeleted(true);
     }
+    setShowDeleteConfirm(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   // Keyword pill color
@@ -369,17 +400,44 @@ export default function MessageBubble({
                 Reply
               </button>
 
-              {/* Delete own message */}
-              {isOwn && (
+              {/* Delete own message — inline confirm */}
+              {isOwn && !showDeleteConfirm && (
                 <button
                   type="button"
-                  data-ocid="message.delete_button"
+                  data-ocid={
+                    msgIndex && isPublicRoom
+                      ? `room.post.delete_button.${msgIndex}`
+                      : "message.delete_button"
+                  }
                   onClick={handleDelete}
                   aria-label="Delete message"
                   className="bg-void-black border border-red-500/20 px-2 py-0.5 text-xs text-red-400/50 hover:text-red-400 flex items-center gap-1"
                 >
                   <Trash2 size={10} />
                 </button>
+              )}
+
+              {/* Inline delete confirmation */}
+              {isOwn && showDeleteConfirm && (
+                <div className="flex items-center gap-1 bg-void-black border border-red-500/30 px-2 py-0.5">
+                  <span className="text-xs text-red-400/70">Delete?</span>
+                  <button
+                    type="button"
+                    data-ocid="message.confirm_button"
+                    onClick={confirmDelete}
+                    className="text-xs text-red-400 hover:text-red-300 font-bold px-1 transition-colors"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid="message.cancel_button"
+                    onClick={cancelDelete}
+                    className="text-xs text-white/40 hover:text-white/70 px-1 transition-colors"
+                  >
+                    No
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -388,15 +446,25 @@ export default function MessageBubble({
           <div
             className={`flex items-center gap-1.5 mt-1.5 px-1 ${isOwn ? "flex-row-reverse" : ""}`}
           >
-            {/* Resonate / Upvote button */}
+            {/* Resonate / Upvote button — toggleable (tap again to undo) */}
             <button
               type="button"
-              data-ocid="message.toggle"
+              data-ocid={
+                msgIndex && isPublicRoom
+                  ? `room.post.upvote_button.${msgIndex}`
+                  : "message.toggle"
+              }
               onClick={handleUpvote}
-              disabled={upvoteLocal}
               className="flex items-center gap-1 transition-all group/up"
-              title={isPublicRoom ? "Resonate with this wisdom" : "Upvote"}
-              style={{ opacity: upvoteLocal ? 0.7 : 1 }}
+              title={
+                isPublicRoom
+                  ? upvoteLocal
+                    ? "Remove resonance"
+                    : "Resonate with this wisdom"
+                  : upvoteLocal
+                    ? "Remove upvote"
+                    : "Upvote"
+              }
             >
               {isPublicRoom ? (
                 <span
@@ -453,7 +521,11 @@ export default function MessageBubble({
             {isPublicRoom && (
               <button
                 type="button"
-                data-ocid="message.toggle"
+                data-ocid={
+                  msgIndex
+                    ? `room.post.bookmark_button.${msgIndex}`
+                    : "message.toggle"
+                }
                 onClick={handleBookmark}
                 aria-label={
                   bookmarked ? "Remove bookmark" : "Bookmark this wisdom"

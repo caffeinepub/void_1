@@ -2,7 +2,7 @@
  * MiningPage — Full crypto dashboard teaser for the future VOID Token.
  * Shows tokenomics, proof-of-wisdom steps, user progress, and launch CTA.
  */
-import { Check, Lock, Share2, Zap } from "lucide-react";
+import { Check, Lock, Share2, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useGetWisdomScore } from "../hooks/useQueries";
@@ -225,6 +225,158 @@ const STEPS = [
   },
 ];
 
+// ─── Tokenomics Modal ─────────────────────────────────────────────────────────
+function TokenomicsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <dialog
+      aria-label="Tokenomics details"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm w-full h-full max-w-none max-h-none m-0 p-0 border-0"
+      style={{ background: "rgba(0,0,0,0.9)" }}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      open
+    >
+      <div
+        className="w-full max-w-sm mx-4 p-6"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(10,0,21,0.98), rgba(0,0,0,0.98))",
+          border: "1px solid rgba(255,215,0,0.25)",
+          boxShadow: "0 0 60px rgba(255,215,0,0.1)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-void-gold font-black tracking-[0.2em] text-lg">
+            TOKENOMICS
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/30 hover:text-white/70 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Supply */}
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{
+              background: "rgba(255,215,0,0.06)",
+              border: "1px solid rgba(255,215,0,0.15)",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-void-gold font-black text-lg">₮</span>
+              <span className="text-white/50 text-xs tracking-wider uppercase font-mono">
+                Max Supply
+              </span>
+            </div>
+            <span className="text-void-gold font-black font-mono">
+              21,000,000
+            </span>
+          </div>
+
+          {/* Distribution */}
+          <div
+            className="px-4 py-3"
+            style={{
+              background: "rgba(142,45,226,0.06)",
+              border: "1px solid rgba(142,45,226,0.2)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-void-purple/80 text-xs tracking-wider uppercase font-mono">
+                Distribution
+              </span>
+              <span className="text-void-purple font-black font-mono">
+                70 / 20 / 10
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {[
+                {
+                  label: "Community (Wisdom Earners)",
+                  pct: 70,
+                  color: "#FFD700",
+                },
+                { label: "Development Team", pct: 20, color: "#8e2de2" },
+                {
+                  label: "Reserve Fund",
+                  pct: 10,
+                  color: "rgba(255,255,255,0.4)",
+                },
+              ].map(({ label, pct, color }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-white/8 relative overflow-hidden">
+                    <div
+                      className="absolute inset-y-0 left-0"
+                      style={{
+                        width: `${pct}%`,
+                        background: color,
+                        opacity: 0.8,
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-xs font-mono w-6 text-right"
+                    style={{ color }}
+                  >
+                    {pct}%
+                  </span>
+                  <span className="text-white/30 text-xs">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Royalties */}
+          <div
+            className="px-4 py-3"
+            style={{
+              background: "rgba(255,215,0,0.04)",
+              border: "1px solid rgba(255,215,0,0.12)",
+            }}
+          >
+            <span className="text-void-gold/60 text-xs tracking-wider uppercase font-mono block mb-2">
+              NFT Royalties
+            </span>
+            <p className="text-white/40 text-xs leading-relaxed">
+              3% of every NFT resale flows to the original creator forever. 1%
+              supports the VOID ecosystem. Fully automated on-chain.
+            </p>
+          </div>
+
+          {/* Launch */}
+          <div
+            className="flex items-center gap-3 px-4 py-3"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <Lock size={14} className="text-white/25 shrink-0" />
+            <div>
+              <span className="text-white/40 text-xs tracking-wider uppercase font-mono block">
+                Launch
+              </span>
+              <span className="text-white/60 text-xs">
+                Phase 2 · Post-MVP · Coming Soon
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-white/20 text-xs font-mono mt-6 tracking-widest uppercase">
+          Wisdom is the proof of work.
+          <br />
+          Truth is the currency.
+        </p>
+      </div>
+    </dialog>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function MiningPage() {
   const voidId = useVoidId();
@@ -233,6 +385,7 @@ export default function MiningPage() {
     return localStorage.getItem("miningNotify") === "true";
   });
   const [justRegistered, setJustRegistered] = useState(false);
+  const [showTokenomicsModal, setShowTokenomicsModal] = useState(false);
 
   const score = wisdomScore ? Number(wisdomScore) : 0;
   const miningThreshold = 1000;
@@ -337,8 +490,18 @@ export default function MiningPage() {
 
       {/* ── Tokenomics Grid ── */}
       <div className="relative z-10 w-full max-w-2xl mb-10 px-2">
-        <div className="text-white/25 text-xs tracking-[0.25em] uppercase font-mono text-center mb-4">
-          Tokenomics
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="text-white/25 text-xs tracking-[0.25em] uppercase font-mono">
+            Tokenomics
+          </div>
+          <button
+            type="button"
+            data-ocid="mining.secondary_button"
+            onClick={() => setShowTokenomicsModal(true)}
+            className="text-void-gold/40 text-xs tracking-wider hover:text-void-gold/70 transition-colors font-mono border border-void-gold/15 px-2 py-0.5 hover:border-void-gold/30"
+          >
+            Details →
+          </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {TOKENOMICS.map((card) => (
@@ -582,6 +745,11 @@ export default function MiningPage() {
         <br />
         Truth is the currency.
       </p>
+
+      {/* Tokenomics modal */}
+      {showTokenomicsModal && (
+        <TokenomicsModal onClose={() => setShowTokenomicsModal(false)} />
+      )}
     </div>
   );
 }

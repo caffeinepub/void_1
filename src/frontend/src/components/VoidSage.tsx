@@ -229,7 +229,7 @@ export default function VoidSage() {
       <button
         type="button"
         aria-label="Open VOID Sage"
-        data-ocid="sage.button"
+        data-ocid="sage.open_modal_button"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -415,7 +415,7 @@ export default function VoidSage() {
               ref={inputRef}
               type="text"
               value={input}
-              data-ocid="sage.input"
+              data-ocid="sage.message.input"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -429,7 +429,7 @@ export default function VoidSage() {
             />
             <button
               type="button"
-              data-ocid="sage.submit_button"
+              data-ocid="sage.send_button"
               onClick={handleSend}
               disabled={!input.trim() || isTyping}
               aria-label="Send to Sage"

@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   Camera,
+  Crown,
   Heart,
   Key,
   LogOut,
@@ -83,6 +84,12 @@ export default function ProfileSettings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Founder Mode state
+  const [showFounderSection, setShowFounderSection] = useState(false);
+  const [founderCode, setFounderCode] = useState("");
+  const [founderModeActive, setFounderModeActive] = useState(false);
+  const [founderCodeError, setFounderCodeError] = useState("");
+
   // Load bio from localStorage on mount
   useEffect(() => {
     if (!voidId) return;
@@ -118,6 +125,43 @@ export default function ProfileSettings() {
       // fail silently
     }
   }, [voidId]);
+
+  // Load founder mode state
+  useEffect(() => {
+    if (!voidId) return;
+    setFounderModeActive(
+      localStorage.getItem(`void_founder_mode_${voidId}`) === "true",
+    );
+  }, [voidId]);
+
+  const handleActivateFounderMode = () => {
+    const FOUNDER_CODE = "VOID_SAGE_2025_OMEGA";
+    // Also support legacy code for backward compat
+    const LEGACY_CODE = "VOID_SAGE_2024_OMEGA";
+    if (
+      founderCode.trim() === FOUNDER_CODE ||
+      founderCode.trim() === LEGACY_CODE
+    ) {
+      if (voidId) {
+        localStorage.setItem(`void_founder_mode_${voidId}`, "true");
+      }
+      setFounderModeActive(true);
+      setFounderCodeError("");
+      toast.success("Founder Mode activated", {
+        description: "The crown is yours. Use it wisely.",
+      });
+    } else {
+      setFounderCodeError("Invalid code. The void does not recognize you.");
+    }
+  };
+
+  const handleDeactivateFounderMode = () => {
+    if (voidId) {
+      localStorage.removeItem(`void_founder_mode_${voidId}`);
+    }
+    setFounderModeActive(false);
+    toast.success("Founder Mode deactivated");
+  };
 
   // Keep cosmicHandle in sync with loaded profile
   useEffect(() => {
@@ -276,20 +320,40 @@ export default function ProfileSettings() {
           />
           {cosmicHandle.trim() ? (
             <>
-              <div className="text-void-gold font-bold text-xl tracking-wide mb-1">
-                @{cosmicHandle.trim().replace(/^@/, "")}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-void-gold font-bold text-xl tracking-wide">
+                  @{cosmicHandle.trim().replace(/^@/, "")}
+                </span>
+                {founderModeActive && (
+                  <Crown size={16} className="text-void-gold" />
+                )}
               </div>
               <div className="text-white/30 text-xs font-mono mb-1">
                 {voidId}
               </div>
             </>
           ) : (
-            <div className="text-void-gold/70 font-mono text-sm tracking-wider mb-1">
+            <div className="text-void-gold/70 font-mono text-sm tracking-wider mb-1 flex items-center gap-2">
               {voidId}
+              {founderModeActive && (
+                <Crown size={14} className="text-void-gold" />
+              )}
             </div>
           )}
-          <div className="text-white/25 text-xs">
-            Tap avatar to change photo
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-white/25 text-xs">Tap avatar to change</span>
+            {score > 0 && (
+              <span
+                className="flex items-center gap-1 text-xs font-mono px-2 py-0.5"
+                style={{
+                  background: "rgba(255,215,0,0.08)",
+                  border: "1px solid rgba(255,215,0,0.2)",
+                  color: "rgba(255,215,0,0.7)",
+                }}
+              >
+                ⭐ {score.toLocaleString()} WS
+              </span>
+            )}
           </div>
         </div>
 
@@ -590,6 +654,87 @@ export default function ProfileSettings() {
               caffeine.ai
             </a>
           </p>
+        </div>
+
+        {/* ─── Founder Mode — hidden / subtle ──────────────────────────── */}
+        <div className="mt-12 pt-6 border-t border-white/5">
+          <button
+            type="button"
+            data-ocid="profile.toggle"
+            onClick={() => setShowFounderSection(!showFounderSection)}
+            className="text-white/15 text-xs hover:text-white/30 transition-colors tracking-widest"
+          >
+            ✦ Advanced
+          </button>
+
+          {showFounderSection && (
+            <div
+              className="mt-4 p-4"
+              style={{
+                border: "1px solid rgba(255,215,0,0.1)",
+                background: "rgba(0,0,0,0.4)",
+              }}
+            >
+              <div className="text-white/30 text-xs mb-3 tracking-wider uppercase">
+                Founder Mode
+              </div>
+
+              {founderModeActive ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-void-gold text-sm">
+                      👑 Founder Mode Active
+                    </span>
+                  </div>
+                  <p className="text-white/40 text-xs mb-3">
+                    Creator Portal is unlocked in the navigation menu.
+                  </p>
+                  <button
+                    type="button"
+                    data-ocid="profile.secondary_button"
+                    onClick={handleDeactivateFounderMode}
+                    className="text-red-400/50 text-xs hover:text-red-400 transition-colors"
+                  >
+                    Deactivate
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <input
+                    type="password"
+                    data-ocid="profile.founder.input"
+                    value={founderCode}
+                    onChange={(e) => {
+                      setFounderCode(e.target.value);
+                      setFounderCodeError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleActivateFounderMode();
+                    }}
+                    placeholder="Enter founder code..."
+                    className="w-full bg-void-black/50 border border-void-gold/15 text-white/60 placeholder:text-white/15 px-3 py-2 text-xs font-mono focus:outline-none focus:border-void-gold/30 mb-2 transition-colors"
+                  />
+                  {founderCodeError && (
+                    <p
+                      data-ocid="profile.error_state"
+                      className="text-red-400/60 text-xs mb-2"
+                    >
+                      {founderCodeError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    data-ocid="profile.founder.submit_button"
+                    onClick={handleActivateFounderMode}
+                    disabled={!founderCode.trim()}
+                    className="text-void-gold/40 text-xs hover:text-void-gold/70 transition-colors disabled:opacity-30"
+                  >
+                    Activate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

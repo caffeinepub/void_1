@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 /**
- * UserProfileCard — A modal that shows another user's profile.
- * Displays their avatar, cosmic handle (main title), VOID ID (subtitle),
- * bio, wisdom score, and a "Send Message" button.
+ * UserProfileCard — A Telegram-style profile popup.
+ * Displays avatar, cosmic handle (main bold gold title), VOID ID (subtitle),
+ * bio, wisdom score, polarity garden preview, and "Send Message" button.
  */
 import { MessageCircle, Star, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -173,9 +173,9 @@ export default function UserProfileCard({
         )}
 
         {/* Bio */}
-        <div className="mb-5 min-h-[48px]">
+        <div className="mb-4 min-h-[40px]">
           {bio ? (
-            <p className="text-white/50 text-xs leading-relaxed text-center italic">
+            <p className="text-white/55 text-xs leading-relaxed text-center italic">
               &ldquo;{bio}&rdquo;
             </p>
           ) : (
@@ -185,9 +185,41 @@ export default function UserProfileCard({
           )}
         </div>
 
+        {/* Polarity Garden Preview — mini cosmic garden */}
+        <div
+          className="mb-4 px-4 py-2.5 flex items-center justify-center gap-2"
+          style={{
+            background: "rgba(255,215,0,0.03)",
+            border: "1px solid rgba(255,215,0,0.08)",
+          }}
+        >
+          <span className="text-xs text-white/20 font-mono tracking-wider uppercase">
+            Polarity Garden
+          </span>
+          <span className="flex gap-1">
+            {["🌸", "✨", "🌿"].map((flower, i) => (
+              <span
+                key={flower}
+                className="text-sm"
+                style={{
+                  opacity: 0.6 + i * 0.1,
+                  filter:
+                    i % 2 === 0
+                      ? "drop-shadow(0 0 4px rgba(255,215,0,0.6))"
+                      : "drop-shadow(0 0 4px rgba(147,51,234,0.6))",
+                  animation: `flowerFloat ${2.5 + i * 0.4}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                }}
+              >
+                {flower}
+              </span>
+            ))}
+          </span>
+        </div>
+
         {/* Divider */}
         <div
-          className="w-full h-px mb-5"
+          className="w-full h-px mb-4"
           style={{
             background:
               "linear-gradient(90deg, transparent, rgba(255,215,0,0.15), transparent)",

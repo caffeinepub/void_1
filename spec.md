@@ -1,65 +1,77 @@
-# VOID v15 — The Light & Dark Encrypted Wisdom Network
+# VOID — Cosmic Spiritual Sanctuary v17
 
 ## Current State
-Full-stack ICP app with Motoko backend (User canister, Room canister, NFT marketplace, Value Offerings, Group chat, Creator Portal) and React/TypeScript/Tailwind frontend. Has CosmicBackground, Navigation, VoidSage, ProfileSetupModal, all room/DM/group pages, NFT marketplace, mining page, and creator portal.
-
-Known issues from conversation history:
-- SplashScreen lacks a proper landing page (no "Enter the Void" hero section with child-friendly copy)
-- Messages sometimes show "Sealed Wisdom" even for participants (E2EE key mismatch)
-- Cosmic Handle not consistently shown as primary title (VOID ID leaking as main title)
-- Light/Dark Rooms: hashtag filter chips sometimes duplicated
-- Single upvote per user not enforced (no per-user vote tracking)
-- Bookmark/save post feature missing
-- Users cannot delete only their own posts
-- VOID Sage is not draggable
-- Admin portal lacks: live user list with last-active, one-click delete, newsletter send, bookmark/report view
-- Star dust particles need to be more consistent and visible across all screens
-- No notification permission toggle in Profile
+Fresh build from scratch. No existing frontend or backend code.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Landing Page**: Pre-login full-screen hero with child-friendly VOID copy, "Enter the Void" glowing CTA button, "Learn more" expandable section, cosmic stars + floating VOID logo animation
-- **Draggable VoidSage orb**: position persisted in localStorage, drag anywhere on screen
-- **Single upvote enforcement**: per-user vote set stored in localStorage + backend upvote dedup (track by channel+messageId+voidId)
-- **Bookmark/save post**: heart icon on every room post → saved to localStorage per user; bookmarks view in Profile
-- **Delete own posts**: trash icon visible only on user's own messages; calls backend deleteMessage
-- **Cosmic Handle as primary in all lists**: DM list, group list, search results always show handle first
-- **Tap Cosmic Handle → profile card**: profile card modal with photo, bio, Wisdom Score, Polarity Garden preview, "Start DM" button
-- **Green E2EE dot**: on every chat header and room header
-- **Empty states**: exact — "Decrypting the void…" in rooms, "Sealed wisdom" purple lock icon with glowing star avatar
-- **Hashtag chips dedup**: render each keyword chip exactly once per room
-- **Notification permission toggle**: in Profile settings, persisted in localStorage
-- **Admin portal upgrades**: live user list with last-active timestamp, one-click delete with confirm dialog, newsletter send to opted-in users, bookmarks + reports view
-- **Backend**: `deleteMessage`, `upvoteMessageOnce` (dedup by voidId), `reportMessage` endpoints; `userBookmarks` map; `userLastActive` timestamp tracking
-- **Star dust**: 80 persistent tiny gold particles floating upward on every screen in CosmicBackground
+
+**Backend — 5 Motoko Canisters:**
+
+1. **UserCanister** — stable HashMap (principal → UserProfile)
+   - Fields: voidId, cosmicHandle (unique), bio, avatar (Blob), wisdomScore, lastActive, e2eePublicKey, pushSubscription (optional)
+   - Functions: registerUser, claimCosmicHandle (uniqueness enforced), updateProfile, getProfile, storePublicKey, storePushSubscription, updateLastActive, bookmarkPost, removeBookmark, getBookmarks
+
+2. **RoomCanister** — two stable HashMaps: lightMessages + darkMessages (messageId → Message)
+   - Message type: id, senderVoidId, senderHandle, text, image(?Blob), video(?Blob), timestamp, upvotes, isDeleted, threadReplies([Nat])
+   - Functions: postMessage, getMessages(channel, page), toggleUpvote, deleteMessage (owner only), replyToMessage, uploadChunk
+
+3. **PrivateChatCanister** — stable HashMap (chatId → [EncryptedMessage])
+   - chatId format: "dm_voidId1_voidId2" or "group_xxx"
+   - EncryptedMessage: chatId, senderVoidId, encryptedBlob, nonce, tag, timestamp, metadata
+   - Functions: sendEncryptedMessage, getMessages(chatId), markChatRead, getUnreadCount, notifyRecipients, getChatsForUser
+
+4. **NFTCanister** — ICRC-7 + royalty extension
+   - Fields: tokenId, owner, creator, metadata, price, royaltyPercent(3%), adminRoyalty(1%), transferHistory
+   - Functions: mint (500+ WS), transfer (auto-deduct royalties), listForSale, buy, getTokens, getTokenById
+
+5. **AdminCanister** — founder code hash, moderation, active users
+   - Functions: storeFounderCodeHash, verifyFounderCode, getActiveUsers, moderateMessage, deleteAccount, getDailyReflection, setDailyReflection, sendNewsletter, getModerationFlags
+
+**Frontend — Vite + React + TypeScript + Tailwind + Framer Motion:**
+
+- Landing page (cosmic, pre-login)
+- Internet Identity login flow
+- VOID ID auto-generation + Cosmic Handle claim prompt
+- Bottom nav: Sun (Light Room), Moon (Dark Room), Speech Bubble (Messages + badge), Lightning (Mining), Person (Profile)
+- Hamburger drawer: NFT Marketplace, invite, bookmarks, founder/creator portal
+- Light Room — Reddit-style threaded posts, 5 hashtags, upvote, bookmark, delete, media upload
+- Dark Room — same as Light Room with dark theme variant
+- Messages — chat list, DM chat, group chat, E2EE per-pair key exchange, gold/purple bubbles, typing indicators, read receipts
+- NFT Marketplace — gallery, filters, mint, buy, lineage history
+- Mining page — teaser UI with wisdom score progress
+- Profile — avatar, bio, E2EE fingerprint, bookmarks, notifications toggle, Polarity Garden, founder mode section
+- Creator Portal — live users, moderation, daily reflection editor, newsletter
+- VOID Sage — draggable glowing orb, E2EE chat, Grok+Sadhguru wisdom
+- Global cosmic canvas: 160 stars + shooting stars + nebula blobs
+- RoomStarDust: 40 extra golden particles in rooms/chats
+- Gold dust send explosion: 25-particle canvas overlay, 800ms
+- Service Worker + Web Push (VAPID) for notifications
+- PWA manifest + offline cache
 
 ### Modify
-- **SplashScreen**: replace current with full landing page hero (keep cosmic bg, add hero text, CTA, learn more)
-- **VoidSage**: make orb draggable via pointer events, persist position
-- **CosmicBackground**: add star dust layer (80 upward-floating gold particles)
-- **Message E2EE**: fix channel-shared key derivation so all participants decrypt correctly; display green E2EE dot in headers
-- **LightRoom/DarkRoom**: deduplicate keyword chips; add bookmark heart icon; add delete (own posts only); add single-upvote logic
-- **DMList**: Cosmic Handle as big bold title, VOID ID as tiny gray subtitle; tapping handle opens profile card modal
-- **ProfileSettings**: add Notification permission toggle, bookmarks section showing saved posts
-- **Navigation**: ensure Creator Portal crown badge only shows for admin users
-- **MiningPage**: keep as-is, minor polish
-- **NFTMarketplace**: keep as-is
+- Nothing (fresh build)
 
 ### Remove
-- Nothing removed; only additions and fixes
+- Nothing (fresh build)
 
 ## Implementation Plan
-1. Update Motoko backend: add `deleteMessage`, `upvoteMessageOnce`, `reportMessage`, `getUserLastActive`, `setUserLastActive`, `getBookmarks`, `saveBookmark`, `removeBookmark` endpoints; add `lastActive` map; add `upvoteRegistry` map for dedup; add `bookmarks` map
-2. Update `backend.d.ts` with new method signatures
-3. Rebuild `SplashScreen.tsx` as full landing page hero with child-friendly copy and "Enter the Void" / "Learn more" sections
-4. Update `CosmicBackground.tsx`: add star dust (80 upward-floating gold particles) using canvas or absolute-positioned divs
-5. Make `VoidSage.tsx` draggable with pointer events + localStorage position persistence
-6. Fix `ChatView.tsx` / `DMView.tsx` E2EE: ensure channel-shared key is derived consistently so all participants can decrypt
-7. Update `LightRoom.tsx` and `DarkRoom.tsx`: deduplicate keyword chips, add bookmark heart, add delete (own only), single-upvote from localStorage
-8. Update `DMList.tsx`: Cosmic Handle bold title, VOID ID subtitle, tap → profile card modal
-9. Update `ProfileSettings.tsx`: notification toggle, bookmarks section
-10. Upgrade `CreatorPortal.tsx`: live user list with last-active, one-click delete with confirm, newsletter send UI, bookmark/report view
-11. Add `UserProfileCard.tsx` modal (already exists — ensure full fields including Polarity Garden preview and Start DM button)
-12. Add green E2EE dot component and apply to all room/chat headers
-13. Deploy
+
+1. Generate 5 Motoko canisters with all types, stable variables, functions, and guards
+2. Build frontend scaffolding: Vite + React + TypeScript + Tailwind + Framer Motion
+3. Implement CosmicCanvas (stars, nebula, shooting stars) as global background layer
+4. Build Landing page with cosmic hero, CTA, "Learn more" section
+5. Build auth flow: Internet Identity login, VOID ID generation, Cosmic Handle claim
+6. Build AppShell: bottom nav (mobile), left sidebar (desktop), hamburger drawer
+7. Build Light Room + Dark Room with Reddit-style threading, upvotes, bookmarks, media upload
+8. Build Messages: chat list, E2EE DM chat, group chat, bubbles, typing indicator, read receipts
+9. Build NFT Marketplace: gallery, mint, buy, royalty display
+10. Build Mining page teaser
+11. Build Profile: avatar, bio, bookmarks, notifications, Polarity Garden, Founder Mode
+12. Build Creator Portal (founder-only)
+13. Build VOID Sage draggable orb + chat
+14. Implement Service Worker + Push notification subscription
+15. Wire all backend actor calls to frontend
+16. Apply deterministic data-ocid markers throughout
+17. Validate, fix errors, and deploy

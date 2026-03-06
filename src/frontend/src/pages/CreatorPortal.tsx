@@ -643,7 +643,7 @@ function NewsletterSection() {
         <div className="relative">
           <textarea
             id="newsletter-message"
-            data-ocid="creator.textarea"
+            data-ocid="creator.newsletter.textarea"
             value={message}
             onChange={(e) =>
               setMessage(e.target.value.slice(0, NEWSLETTER_MAX))
@@ -684,6 +684,24 @@ export default function CreatorPortal() {
   const { data: isAdmin, isLoading: checkingAdmin } = useIsCallerAdmin();
   const [activeTab, setActiveTab] = useState<PortalTab>("identity");
 
+  // Also allow Founder Mode users (activated via localStorage flag)
+  const isFounderMode = (() => {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+          key?.startsWith("void_founder_mode_") &&
+          localStorage.getItem(key) === "true"
+        ) {
+          return true;
+        }
+      }
+    } catch {
+      /**/
+    }
+    return false;
+  })();
+
   if (checkingAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full py-16">
@@ -695,7 +713,7 @@ export default function CreatorPortal() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isFounderMode) {
     return <NotAuthorized />;
   }
 

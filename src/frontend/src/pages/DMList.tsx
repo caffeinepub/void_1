@@ -553,16 +553,23 @@ export default function DMList() {
   return (
     <div className="void-bg flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
+      <div className="px-5 py-3.5 border-b border-void-gold/15 flex items-center justify-between shrink-0 bg-void-black/60">
         <div>
-          <h1 className="text-white font-bold tracking-wider text-lg">
+          <h1 className="text-void-gold font-bold tracking-wider text-lg flex items-center gap-2">
             Messages
+            <span
+              className="w-2 h-2 rounded-full bg-green-500 inline-block"
+              style={{ boxShadow: "0 0 6px rgba(34,197,94,0.8)" }}
+            />
           </h1>
-          <p className="text-white/30 text-xs">Private · E2EE</p>
+          <p className="text-white/30 text-xs mt-0.5">
+            Private · End-to-End Encrypted
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
+            data-ocid="messages.open_modal_button"
             onClick={() => setInviteOpen(true)}
             className="void-btn-icon"
             title="Invite friends"
@@ -572,6 +579,7 @@ export default function DMList() {
           {activeTab === "dms" && (
             <button
               type="button"
+              data-ocid="messages.primary_button"
               onClick={() => setShowNewDM(true)}
               className="void-btn-icon"
               title="New direct message"
@@ -582,6 +590,7 @@ export default function DMList() {
           {activeTab === "groups" && (
             <button
               type="button"
+              data-ocid="messages.secondary_button"
               onClick={() => setShowNewGroup(true)}
               className="void-btn-icon"
               title="New group"
@@ -589,6 +598,25 @@ export default function DMList() {
               <Plus size={18} />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="px-4 py-2 border-b border-void-gold/10 bg-void-black/40">
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25"
+          />
+          <input
+            type="text"
+            data-ocid="messages.search.input"
+            placeholder="Search by Cosmic Handle or VOID ID"
+            className="w-full bg-void-black/50 border border-void-gold/15 text-white placeholder:text-white/20 pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-void-gold/40 transition-colors"
+            style={{ fontSize: "14px" }}
+            readOnly
+            onClick={() => setShowNewDM(true)}
+          />
         </div>
       </div>
 
@@ -665,7 +693,7 @@ export default function DMList() {
             </div>
           )}
 
-          {dmChannels.map((dm) => {
+          {dmChannels.map((dm, idx) => {
             const channelId = getChannelId(dm);
             const partner = voidId
               ? getDMPartner(channelId, voidId)
@@ -674,6 +702,7 @@ export default function DMList() {
             return (
               <div
                 key={channelId}
+                data-ocid={`messages.chat.item.${idx + 1}`}
                 className="flex items-center border-b border-white/5 hover:bg-void-gold/5 transition-colors"
               >
                 <button

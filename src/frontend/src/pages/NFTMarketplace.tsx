@@ -105,6 +105,7 @@ function MintModal({ wisdomScore, creatorVoidId, onClose }: MintModalProps) {
           </div>
           <button
             type="button"
+            data-ocid="nft.mint_modal.close_button"
             onClick={onClose}
             className="text-white/30 hover:text-white/70 transition-colors"
           >
@@ -214,6 +215,7 @@ function MintModal({ wisdomScore, creatorVoidId, onClose }: MintModalProps) {
 
           <button
             type="button"
+            data-ocid="nft.mint_modal.submit_button"
             onClick={handleMint}
             disabled={isPending || !postText.trim()}
             className="void-btn-primary w-full py-3.5 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
@@ -239,6 +241,7 @@ interface NFTCardProps {
   onBuy: (id: bigint) => void;
   resonating: boolean;
   buying: boolean;
+  index: number;
 }
 
 function NFTCard({
@@ -248,6 +251,7 @@ function NFTCard({
   onBuy,
   resonating,
   buying,
+  index,
 }: NFTCardProps) {
   const [localResonated, setLocalResonated] = useState(false);
   const shortCreator = nft.creatorVoidId
@@ -266,6 +270,7 @@ function NFTCard({
 
   return (
     <div
+      data-ocid={`nft.item.${index}`}
       className="nft-card-glow flex flex-col"
       style={{
         background:
@@ -389,6 +394,19 @@ function NFTCard({
             </div>
           </div>
         )}
+
+        {/* Royalty info */}
+        <div
+          className="flex items-center gap-1.5 px-2 py-1.5 mt-1"
+          style={{
+            background: "rgba(255,215,0,0.04)",
+            border: "1px solid rgba(255,215,0,0.12)",
+          }}
+        >
+          <span className="text-void-gold/40 text-[10px] leading-snug">
+            ✦ 3% royalty to creator forever · 1% to VOID team
+          </span>
+        </div>
       </div>
 
       {/* Actions */}
@@ -399,6 +417,7 @@ function NFTCard({
         {/* Resonate */}
         <button
           type="button"
+          data-ocid={`nft.secondary_button.${index}`}
           onClick={handleResonate}
           disabled={
             resonating ||
@@ -427,6 +446,7 @@ function NFTCard({
         {nft.isForSale && nft.creator.toString() !== currentVoidId && (
           <button
             type="button"
+            data-ocid={`nft.primary_button.${index}`}
             onClick={() => onBuy(nft.id)}
             disabled={buying}
             className="flex-1 flex items-center justify-center gap-1 py-2 text-xs tracking-wide transition-all disabled:opacity-40"
@@ -542,6 +562,7 @@ export default function NFTMarketplace() {
           {canMint && (
             <button
               type="button"
+              data-ocid="nft.mint_button"
               onClick={() => setShowMintModal(true)}
               className="void-btn-primary px-4 py-2.5 text-xs tracking-wider uppercase flex items-center gap-1.5"
               style={{ boxShadow: "0 0 16px rgba(255,215,0,0.15)" }}
@@ -633,7 +654,10 @@ export default function NFTMarketplace() {
       {/* NFT Gallery */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {isLoading && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div
+            data-ocid="nft.loading_state"
+            className="flex flex-col items-center justify-center py-16 gap-3"
+          >
             <Loader2 size={24} className="text-void-gold/40 animate-spin" />
             <p className="text-white/30 text-sm">
               Retrieving eternal artifacts...
@@ -642,7 +666,10 @@ export default function NFTMarketplace() {
         )}
 
         {!isLoading && sorted.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center gap-4 px-6">
+          <div
+            data-ocid="nft.empty_state"
+            className="flex flex-col items-center justify-center py-16 text-center gap-4 px-6"
+          >
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center"
               style={{
@@ -675,7 +702,7 @@ export default function NFTMarketplace() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sorted.map((nft) => (
+          {sorted.map((nft, idx) => (
             <NFTCard
               key={nft.id.toString()}
               nft={nft}
@@ -684,6 +711,7 @@ export default function NFTMarketplace() {
               onBuy={handleBuy}
               resonating={resonatingId === nft.id}
               buying={buyingId === nft.id}
+              index={idx + 1}
             />
           ))}
         </div>

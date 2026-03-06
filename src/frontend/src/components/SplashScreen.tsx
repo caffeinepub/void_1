@@ -97,49 +97,65 @@ export default function SplashScreen() {
             border: "1px solid rgba(255,215,0,0.15)",
           }}
         >
-          <p className="text-white/75 text-base leading-relaxed">
-            VOID is a safe place where you can share your truth, talk about
-            life, wisdom and feelings — all{" "}
-            <span className="text-void-gold font-medium">privately</span> and{" "}
-            <span className="text-void-gold font-medium">
-              for free, forever.
-            </span>
+          <p className="text-white/80 text-base leading-relaxed">
+            VOID is a safe free cosmic temple where you can share your thoughts,
+            wisdom and feelings with others{" "}
+            <span className="text-void-gold font-semibold">privately.</span>
           </p>
-          <p className="text-white/50 text-sm mt-3 leading-relaxed">
-            No ads. No spying. Just real people helping each other grow.
+          <p className="text-white/55 text-sm mt-3 leading-relaxed">
+            No ads, no spying, just good people growing together.
           </p>
         </div>
 
         {/* Urgency note */}
         <p
           className="text-sm italic mb-8 max-w-sm"
-          style={{ color: "rgba(255,215,0,0.6)" }}
+          style={{ color: "rgba(255,215,0,0.65)" }}
         >
-          Pricing may start soon. Join now while it's completely free and stay
-          in the VOID forever.
+          It might cost money later. Join now while it is{" "}
+          <span className="font-semibold">completely free forever!</span>
         </p>
 
         {/* Enter the Void button */}
         <button
           type="button"
-          data-ocid="splash.primary_button"
+          data-ocid="landing.enter_button"
           onClick={login}
           disabled={isLoggingIn}
-          className="void-btn-primary w-full max-w-sm py-5 text-sm tracking-[0.3em] uppercase font-bold disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+          className="w-full max-w-sm py-5 text-sm tracking-[0.3em] uppercase font-bold disabled:opacity-50 disabled:cursor-not-allowed mb-4 relative overflow-hidden transition-all"
           style={{
+            background: isLoggingIn
+              ? "rgba(255,215,0,0.08)"
+              : "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(218,165,32,0.12))",
+            border: "1px solid rgba(255,215,0,0.5)",
+            color: "#FFD700",
             boxShadow: isLoggingIn
               ? "none"
-              : "0 0 30px rgba(255,215,0,0.2), 0 0 60px rgba(255,215,0,0.08)",
+              : "0 0 30px rgba(255,215,0,0.25), 0 0 60px rgba(255,215,0,0.1), inset 0 0 30px rgba(255,215,0,0.05)",
           }}
         >
-          {isLoggingIn ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-void-gold/30 border-t-void-gold rounded-full animate-spin" />
-              Entering the Void...
-            </span>
-          ) : (
-            "✦ Enter the Void ✦"
+          {/* Shimmer effect */}
+          {!isLoggingIn && (
+            <span
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.15) 50%, transparent 60%)",
+                backgroundSize: "200% 100%",
+                animation: "gold-shimmer 3s linear infinite",
+              }}
+            />
           )}
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            {isLoggingIn ? (
+              <>
+                <span className="w-4 h-4 border-2 border-void-gold/30 border-t-void-gold rounded-full animate-spin" />
+                Entering the Void...
+              </>
+            ) : (
+              "✦ Enter the Void ✦"
+            )}
+          </span>
         </button>
 
         {/* Learn More toggle */}

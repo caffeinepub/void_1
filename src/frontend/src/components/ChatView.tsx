@@ -1,4 +1,5 @@
-import { ChevronUp } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, ChevronUp, Lock } from "lucide-react";
 /**
  * ChatView — Main message area for Light Room, Dark Room, and DMs.
  * Adds keyword filter bar for public rooms and upvote support.
@@ -23,29 +24,58 @@ import { registerKnownUser } from "../lib/userRegistry";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 
-// ─── Keywords per channel ─────────────────────────────────────────────────────
+// ─── Keywords per channel — exactly 5 unique per room ────────────────────────
 const KEYWORDS: Record<"lightRoom" | "darkRoom", string[]> = {
-  lightRoom: [
-    "truth",
-    "mindset",
-    "clarity",
-    "omnism",
-    "wisdom",
-    "consciousness",
-    "unity",
-    "love",
-  ],
-  darkRoom: [
-    "maya",
-    "illusion",
-    "matrix",
-    "shadow",
-    "ego",
-    "deception",
-    "deconstruction",
-    "fear",
-  ],
+  lightRoom: ["truth", "mindset", "clarity", "omnism", "wisdom"],
+  darkRoom: ["maya", "illusion", "matrix", "shadow", "ego"],
 };
+
+// ─── Room star dust layer — bright golden embers behind messages ──────────────
+// 40 extra slow golden particles for rooms/chats (RoomStarDust spec)
+const ROOM_DUST = Array.from({ length: 40 }).map((_, i) => ({
+  id: `room-dust-${i}`,
+  x: (i * 37 + 13) % 100,
+  size: 1.5 + ((i * 7) % 3) * 0.5, // 1.5–2.5px
+  dur: 12 + ((i * 3) % 16), // 12–28s (slow upward float)
+  delay: -((i * 3.5) % 25),
+  opacity: 0.35 + (i % 4) * 0.1, // 0.35–0.65 (brighter)
+  isGold: i % 3 !== 2, // 70% gold, 30% purple-ish
+}));
+
+function RoomStarDust({ isLight }: { isLight: boolean }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        overflow: "hidden",
+        zIndex: 0,
+      }}
+    >
+      {ROOM_DUST.map((p) => {
+        const color = p.isGold ? "#FFD700" : isLight ? "#FFD700" : "#9333ea";
+        return (
+          <div
+            key={p.id}
+            style={{
+              position: "absolute",
+              left: `${p.x}%`,
+              bottom: "-5px",
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              borderRadius: "50%",
+              backgroundColor: color,
+              boxShadow: `0 0 ${p.size * 3}px ${p.size}px ${color}88`,
+              opacity: p.opacity,
+              animation: `starDustFloat ${p.dur}s linear ${p.delay}s infinite`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 interface ChatViewProps {
   channel: string;
@@ -53,6 +83,8 @@ interface ChatViewProps {
   title: string;
   /** Optional element rendered in the header next to the title (e.g. member count button) */
   extraHeaderAction?: ReactNode;
+  /** Show back button (for DM chat screens) */
+  showBack?: boolean;
 }
 
 // Map values: undefined = pending, null = failed decrypt, string = plaintext
@@ -63,7 +95,9 @@ export default function ChatView({
   channelType,
   title,
   extraHeaderAction,
+  showBack,
 }: ChatViewProps) {
+  const navigate = useNavigate();
   const { data: messages = [], isLoading } = useGetMessages(channel);
   const { mutateAsync: loadOlder, isPending: loadingOlder } =
     useLoadOlderMessages();
@@ -242,8 +276,19 @@ export default function ChatView({
     <div className="flex flex-col h-full overflow-hidden w-full">
       {/* Header */}
       <div
-        className={`shrink-0 px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 ${headerBg}`}
+        className={`shrink-0 px-3 sm:px-5 py-3 sm:py-3.5 flex items-center gap-2 sm:gap-3 ${headerBg}`}
       >
+        {/* Back button for DMs */}
+        {(showBack || channelType === "dm") && (
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/dms" })}
+            className="shrink-0 text-white/40 hover:text-void-gold transition-colors p-1"
+            aria-label="Back to messages"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
         <div className="min-w-0 flex-1">
           <h1
             className={`font-bold tracking-wider text-base sm:text-lg truncate ${
@@ -251,7 +296,7 @@ export default function ChatView({
                 ? "text-void-gold"
                 : channelType === "darkRoom"
                   ? "text-void-purple"
-                  : "text-white"
+                  : "text-void-gold"
             }`}
           >
             {title}
@@ -266,10 +311,32 @@ export default function ChatView({
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {extraHeaderAction}
-          <span className="w-2 h-2 rounded-full bg-green-500/60" />
-          <span className="text-white/30 text-xs">E2EE</span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full bg-green-500"
+              style={{ boxShadow: "0 0 6px rgba(34,197,94,0.8)" }}
+            />
+            <span className="text-green-400/70 text-xs font-mono">E2EE</span>
+          </div>
         </div>
       </div>
+
+      {/* E2EE banner for private DMs */}
+      {channelType === "dm" && (
+        <div
+          className="shrink-0 px-4 py-2 flex items-center gap-2"
+          style={{
+            background: "rgba(34,197,94,0.04)",
+            borderBottom: "1px solid rgba(34,197,94,0.12)",
+          }}
+        >
+          <Lock size={11} className="text-green-400/60 shrink-0" />
+          <p className="text-green-400/60 text-xs leading-snug">
+            Messages are end-to-end encrypted. Only you and the recipient can
+            read them.
+          </p>
+        </div>
+      )}
 
       {/* Keyword filter bar — only for public rooms */}
       {showFilterBar && keywords.length > 0 && (
@@ -319,6 +386,7 @@ export default function ChatView({
               <button
                 key={kw}
                 type="button"
+                data-ocid="room.hashtag.tab"
                 onClick={() => setActiveKeyword(isActive ? null : kw)}
                 className="shrink-0 px-2.5 py-1 text-xs font-mono tracking-wide transition-all"
                 style={{
@@ -352,114 +420,123 @@ export default function ChatView({
       )}
 
       {/* Messages scroll container — flex-1 + min-h-0 is critical for bounded scroll */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 space-y-1 w-full overflow-x-hidden"
-        style={{
-          background: "rgba(0,0,0,0.3)",
-        }}
-      >
-        {/* Load older button */}
-        {hasMore && (
-          <div className="flex justify-center mb-4">
-            <button
-              type="button"
-              onClick={handleLoadOlder}
-              disabled={loadingOlder}
-              className="flex items-center gap-2 text-xs text-white/30 hover:text-void-gold transition-colors border border-void-gold/10 px-4 py-2"
-            >
-              {loadingOlder ? (
-                <span className="w-3 h-3 border border-void-gold/30 border-t-void-gold rounded-full animate-spin" />
+      <div className="flex-1 min-h-0 relative">
+        {/* Star dust layer — only for public rooms, sits behind messages */}
+        {isPublicRoom && <RoomStarDust isLight={isLightRoom} />}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto px-3 sm:px-4 py-4 space-y-1 w-full overflow-x-hidden relative"
+          style={{
+            background: "rgba(0,0,0,0.3)",
+            zIndex: 1,
+          }}
+        >
+          {/* Load older button */}
+          {hasMore && (
+            <div className="flex justify-center mb-4">
+              <button
+                type="button"
+                onClick={handleLoadOlder}
+                disabled={loadingOlder}
+                className="flex items-center gap-2 text-xs text-white/30 hover:text-void-gold transition-colors border border-void-gold/10 px-4 py-2"
+              >
+                {loadingOlder ? (
+                  <span className="w-3 h-3 border border-void-gold/30 border-t-void-gold rounded-full animate-spin" />
+                ) : (
+                  <ChevronUp size={12} />
+                )}
+                Load older messages
+              </button>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="text-white/30 text-sm animate-pulse">
+                Decrypting the void...
+              </div>
+            </div>
+          )}
+
+          {!isLoading && rootMessages.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              {channelType === "lightRoom" ? (
+                <>
+                  <div className="text-4xl mb-4">☀️</div>
+                  <p
+                    className="text-sm italic"
+                    style={{ color: "rgba(255,215,0,0.45)" }}
+                  >
+                    Decrypting the void…
+                  </p>
+                  <p className="text-white/20 text-xs mt-2">
+                    Be the first to share wisdom.
+                  </p>
+                </>
+              ) : channelType === "darkRoom" ? (
+                <>
+                  <div
+                    className="text-3xl mb-3"
+                    style={{
+                      filter: "drop-shadow(0 0 10px rgba(142,45,226,0.5))",
+                    }}
+                  >
+                    🔒
+                  </div>
+                  <p
+                    className="text-sm italic"
+                    style={{ color: "rgba(142,45,226,0.6)" }}
+                  >
+                    Sealed wisdom awaits...
+                  </p>
+                  <p className="text-white/20 text-xs mt-2">
+                    Speak your shadow. Dissolve the illusion.
+                  </p>
+                </>
               ) : (
-                <ChevronUp size={12} />
+                <>
+                  <div className="text-4xl mb-4">💬</div>
+                  <p className="text-white/30 text-sm">
+                    The void awaits your first message.
+                  </p>
+                </>
               )}
-              Load older messages
-            </button>
-          </div>
-        )}
-
-        {isLoading && (
-          <div className="flex justify-center py-8">
-            <div className="text-white/30 text-sm animate-pulse">
-              Decrypting the void...
             </div>
-          </div>
-        )}
+          )}
 
-        {!isLoading && rootMessages.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            {channelType === "lightRoom" ? (
-              <>
-                <div className="text-4xl mb-4">☀️</div>
-                <p
-                  className="text-sm italic"
-                  style={{ color: "rgba(255,215,0,0.45)" }}
-                >
-                  Decrypting the void…
-                </p>
-                <p className="text-white/20 text-xs mt-2">
-                  Be the first to share wisdom.
-                </p>
-              </>
-            ) : channelType === "darkRoom" ? (
-              <>
-                <div
-                  className="text-3xl mb-3"
-                  style={{
-                    filter: "drop-shadow(0 0 10px rgba(142,45,226,0.5))",
-                  }}
-                >
-                  🔒
-                </div>
-                <p
-                  className="text-sm italic"
-                  style={{ color: "rgba(142,45,226,0.6)" }}
-                >
-                  Sealed wisdom awaits...
-                </p>
-                <p className="text-white/20 text-xs mt-2">
-                  Speak your shadow. Dissolve the illusion.
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="text-4xl mb-4">💬</div>
-                <p className="text-white/30 text-sm">
-                  The void awaits your first message.
-                </p>
-              </>
-            )}
-          </div>
-        )}
+          {rootMessages.map((msg, idx) => {
+            // Dim non-matching messages when filter is active
+            const matchesFilter =
+              !activeKeyword || msg.keywords.includes(activeKeyword);
+            return (
+              <div
+                key={msg.id}
+                data-ocid={
+                  isPublicRoom ? `room.post.item.${idx + 1}` : undefined
+                }
+                style={{
+                  opacity: matchesFilter ? 1 : 0.25,
+                  transition: "opacity 0.2s ease",
+                }}
+              >
+                <MessageBubble
+                  message={msg}
+                  decryptedText={decryptedMap.get(msg.id)}
+                  channelType={channelType}
+                  channel={channel}
+                  currentVoidId={voidId ?? ""}
+                  replies={replyMap.get(msg.id) ?? []}
+                  decryptedReplies={decryptedMap}
+                  onUpvote={() => handleUpvote(msg.id)}
+                  msgIndex={idx + 1}
+                />
+              </div>
+            );
+          })}
 
-        {rootMessages.map((msg) => {
-          // Dim non-matching messages when filter is active
-          const matchesFilter =
-            !activeKeyword || msg.keywords.includes(activeKeyword);
-          return (
-            <div
-              key={msg.id}
-              style={{
-                opacity: matchesFilter ? 1 : 0.25,
-                transition: "opacity 0.2s ease",
-              }}
-            >
-              <MessageBubble
-                message={msg}
-                decryptedText={decryptedMap.get(msg.id)}
-                channelType={channelType}
-                channel={channel}
-                currentVoidId={voidId ?? ""}
-                replies={replyMap.get(msg.id) ?? []}
-                decryptedReplies={decryptedMap}
-                onUpvote={() => handleUpvote(msg.id)}
-              />
-            </div>
-          );
-        })}
-
-        <div ref={bottomRef} />
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Input — shrink-0 keeps it anchored to bottom */}

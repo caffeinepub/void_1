@@ -115,6 +115,17 @@ function IndexRedirect() {
   return null;
 }
 
+// /messages redirects to /dms for spec compatibility
+function MessagesRedirect() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate({ to: "/dms" });
+  }, [navigate]);
+
+  return null;
+}
+
 // Route definitions
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -190,12 +201,20 @@ const offeringsRoute = createRoute({
   component: ValueOfferings,
 });
 
+// /messages alias for /dms (spec compatibility)
+const messagesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/messages",
+  component: MessagesRedirect,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   lightRoomRoute,
   darkRoomRoute,
   dmListRoute,
   dmViewRoute,
+  messagesRoute,
   profileRoute,
   miningRoute,
   inviteRoute,

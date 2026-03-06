@@ -32,21 +32,36 @@ const BOTTOM_NAV_ITEMS = [
     label: "Light",
     icon: Sun,
     color: "text-void-gold",
+    ocid: "nav.light_room.link",
   },
   {
     path: "/dark-room",
     label: "Dark",
     icon: Moon,
     color: "text-void-purple",
+    ocid: "nav.dark_room.link",
   },
   {
     path: "/dms",
     label: "Messages",
     icon: MessageSquare,
     color: "text-white/70",
+    ocid: "nav.messages.link",
   },
-  { path: "/mining", label: "Mining", icon: Zap, color: "text-void-gold" },
-  { path: "/nft", label: "NFT", icon: Sparkles, color: "text-void-purple" },
+  {
+    path: "/mining",
+    label: "Mining",
+    icon: Zap,
+    color: "text-void-gold",
+    ocid: "nav.mining.link",
+  },
+  {
+    path: "/profile",
+    label: "Profile",
+    icon: User,
+    color: "text-void-gold",
+    ocid: "nav.profile.link",
+  },
 ];
 
 // ─── Full sidebar nav items ───────────────────────────────────────────────────
@@ -107,10 +122,16 @@ export default function Navigation() {
 
   const currentPath = routerState.location.pathname;
 
-  // Build nav items: base items + admin-only creator portal
-  const NAV_ITEMS = isAdmin
-    ? [...BASE_NAV_ITEMS, CREATOR_NAV_ITEM]
-    : BASE_NAV_ITEMS;
+  // Check founder mode from localStorage (set via Profile settings)
+  const isFounderMode = voidId
+    ? localStorage.getItem(`void_founder_mode_${voidId}`) === "true"
+    : false;
+
+  // Build nav items: base items + admin-only creator portal (via backend OR founder mode)
+  const NAV_ITEMS =
+    isAdmin || isFounderMode
+      ? [...BASE_NAV_ITEMS, CREATOR_NAV_ITEM]
+      : BASE_NAV_ITEMS;
 
   const handleLogout = async () => {
     await clear();
@@ -150,13 +171,18 @@ export default function Navigation() {
             <img
               src={avatarUrl}
               alt="avatar"
-              className="w-10 h-10 rounded-full border border-void-gold/30"
+              className="w-10 h-10 rounded-full border border-void-gold/30 shadow-[0_0_10px_rgba(255,215,0,0.2)]"
             />
-            <div className="min-w-0">
-              <div className="text-white/80 text-sm font-medium truncate">
+            <div className="min-w-0 flex-1">
+              <div className="text-void-gold text-sm font-bold truncate flex items-center gap-1.5">
                 {displayName}
+                {isFounderMode && (
+                  <Crown size={12} className="text-void-gold shrink-0" />
+                )}
               </div>
-              <div className="text-white/30 text-xs truncate">{voidId}</div>
+              <div className="text-white/30 text-xs font-mono truncate mt-0.5">
+                {voidId?.slice(0, 28)}
+              </div>
             </div>
           </div>
         </div>
@@ -166,10 +192,12 @@ export default function Navigation() {
           {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
             const isActive = currentPath === path;
             const isCreator = path === "/creator";
+            const ocid = `nav.${path.replace(/^\//, "").replace(/-/g, "_")}.link`;
             return (
               <button
                 key={path}
                 type="button"
+                data-ocid={ocid}
                 onClick={() => handleNav(path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all ${
                   isActive
@@ -196,6 +224,7 @@ export default function Navigation() {
         <div className="px-4 pb-2">
           <button
             type="button"
+            data-ocid="nav.invite.button"
             onClick={() => setInviteOpen(true)}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white/40 hover:text-void-gold hover:bg-void-gold/5 transition-all border border-void-gold/10 hover:border-void-gold/30"
           >
@@ -258,10 +287,12 @@ export default function Navigation() {
             {NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
               const isActive = currentPath === path;
               const isCreator = path === "/creator";
+              const ocid = `nav.${path.replace(/^\//, "").replace(/-/g, "_")}.link`;
               return (
                 <button
                   key={path}
                   type="button"
+                  data-ocid={ocid}
                   onClick={() => handleNav(path)}
                   className={`w-full flex items-center gap-3 px-4 py-4 text-sm transition-all ${
                     isActive
@@ -288,6 +319,7 @@ export default function Navigation() {
           <div className="px-4 pb-2">
             <button
               type="button"
+              data-ocid="nav.invite.button"
               onClick={() => {
                 setMobileOpen(false);
                 setInviteOpen(true);
@@ -313,58 +345,92 @@ export default function Navigation() {
       )}
 
       {/* ── Mobile Bottom Nav ─────────────────────────────────────────────────── */}
-      {/* 5 items: Light, Dark, Messages, Mining, NFT — Profile/Creator via drawer */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-void-black/95 border-t border-void-gold/10 flex">
-        {BOTTOM_NAV_ITEMS.map(({ path, label, icon: Icon, color }) => {
+      {/* Exactly 5 items: Light, Dark, Messages, Mining, Profile */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-void-black/98 border-t border-void-gold/10 flex"
+        style={{ backdropFilter: "blur(20px)" }}
+      >
+        {BOTTOM_NAV_ITEMS.map(({ path, label, icon: Icon, ocid }) => {
           const isActive = currentPath === path;
           const isDarkTab = path === "/dark-room";
-          const isLightTab = path === "/light-room";
-          const activeColor = isDarkTab
-            ? "text-void-purple"
-            : isLightTab
-              ? "text-void-gold"
-              : "text-void-gold";
+          const isMiningTab = path === "/mining";
+          const isMessagesTab = path === "/dms";
+
+          const activeIconColor = isDarkTab ? "#9333ea" : "#FFD700";
+          const activeGlow = isDarkTab
+            ? "drop-shadow(0 0 8px rgba(147,51,234,0.9))"
+            : "drop-shadow(0 0 8px rgba(255,215,0,0.9))";
+
           return (
             <button
               key={path}
               type="button"
-              data-ocid="nav.link"
+              data-ocid={ocid}
               onClick={() => handleNav(path)}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs transition-colors ${
-                isActive ? activeColor : "text-white/30"
-              }`}
+              className="flex-1 flex flex-col items-center py-2.5 gap-1 text-xs transition-all relative"
               style={
                 isActive
                   ? {
-                      borderTop: isDarkTab
-                        ? "2px solid rgba(142,45,226,0.7)"
-                        : isLightTab
-                          ? "2px solid rgba(255,215,0,0.7)"
-                          : "2px solid rgba(255,215,0,0.5)",
+                      color: activeIconColor,
+                      boxShadow: "inset 0 0 12px rgba(255,255,255,0.05)",
+                      borderTop: "2px solid rgba(255,255,255,0.7)",
                     }
-                  : { borderTop: "2px solid transparent" }
+                  : {
+                      color: "rgba(255,255,255,0.3)",
+                      borderTop: "2px solid transparent",
+                    }
               }
             >
-              <Icon
-                size={18}
-                className={
-                  isActive
-                    ? isDarkTab
-                      ? "text-void-purple"
-                      : "text-void-gold"
-                    : color
-                }
-                style={
-                  isActive
-                    ? {
-                        filter: isDarkTab
-                          ? "drop-shadow(0 0 6px rgba(142,45,226,0.8))"
-                          : "drop-shadow(0 0 6px rgba(255,215,0,0.8))",
+              {/* White glow behind active icon */}
+              {isActive && (
+                <span
+                  className="absolute top-1 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full pointer-events-none"
+                  style={{
+                    background: isDarkTab
+                      ? "radial-gradient(circle, rgba(147,51,234,0.25) 0%, transparent 70%)"
+                      : isMiningTab
+                        ? "radial-gradient(circle, rgba(147,51,234,0.2) 0%, transparent 70%)"
+                        : "radial-gradient(circle, rgba(255,215,0,0.2) 0%, transparent 70%)",
+                    filter: "blur(4px)",
+                  }}
+                />
+              )}
+              <div className="relative">
+                <Icon
+                  size={20}
+                  style={
+                    isActive
+                      ? { color: activeIconColor, filter: activeGlow }
+                      : { color: "rgba(255,255,255,0.3)" }
+                  }
+                />
+                {/* Unread badge for Messages tab */}
+                {isMessagesTab &&
+                  (() => {
+                    try {
+                      const unreadKey = "void_total_unread";
+                      const count = Number(
+                        localStorage.getItem(unreadKey) ?? 0,
+                      );
+                      if (count > 0) {
+                        return (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center text-[9px] font-bold rounded-full bg-red-500 text-white leading-none">
+                            {count > 9 ? "9+" : count}
+                          </span>
+                        );
                       }
-                    : undefined
-                }
-              />
-              <span className="tracking-wide">{label}</span>
+                    } catch {
+                      /**/
+                    }
+                    return null;
+                  })()}
+              </div>
+              <span
+                className="tracking-wide font-medium"
+                style={{ fontSize: "10px" }}
+              >
+                {label}
+              </span>
             </button>
           );
         })}

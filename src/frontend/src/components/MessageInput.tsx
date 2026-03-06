@@ -46,28 +46,10 @@ const EMOJI_SET = [
   "🔯",
 ];
 
-// ─── Keywords per channel type ────────────────────────────────────────────────
+// ─── Keywords per channel type — exactly 5 per room (spec requirement) ──────
 const KEYWORDS: Record<"lightRoom" | "darkRoom", string[]> = {
-  lightRoom: [
-    "truth",
-    "mindset",
-    "clarity",
-    "omnism",
-    "wisdom",
-    "consciousness",
-    "unity",
-    "love",
-  ],
-  darkRoom: [
-    "maya",
-    "illusion",
-    "matrix",
-    "shadow",
-    "ego",
-    "deception",
-    "deconstruction",
-    "fear",
-  ],
+  lightRoom: ["truth", "mindset", "clarity", "omnism", "wisdom"],
+  darkRoom: ["maya", "illusion", "matrix", "shadow", "ego"],
 };
 
 interface MessageInputProps {
@@ -326,6 +308,7 @@ export default function MessageInput({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          data-ocid={showKeywords ? "room.post.input" : "chat.message.input"}
           placeholder={
             isReady ? "Speak your truth..." : "Initializing encryption..."
           }
@@ -339,6 +322,9 @@ export default function MessageInput({
         <button
           ref={sendBtnRef}
           type="button"
+          data-ocid={
+            showKeywords ? "room.post.submit_button" : "chat.send_button"
+          }
           onClick={handleSend}
           disabled={(!text.trim() && !filePreview) || isPending || !isReady}
           className="void-btn-send pb-1 disabled:opacity-30 transition-all"

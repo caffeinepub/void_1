@@ -191,16 +191,16 @@ function generateDustParticles(count: number): DustParticle[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `dust-${i}`,
     x: seededRandom(i * 31 + 7) * 100,
-    size: 1.5 + seededRandom(i * 17 + 3) * 2,
-    color: seededRandom(i * 23 + 11) < 0.6 ? "#FFD700" : "#8e2de2",
-    opacity: 0.2 + seededRandom(i * 41 + 5) * 0.35,
+    size: 2 + seededRandom(i * 17 + 3) * 2.5,
+    color: seededRandom(i * 23 + 11) < 0.75 ? "#FFD700" : "#8e2de2",
+    opacity: 0.3 + seededRandom(i * 41 + 5) * 0.35,
     duration: 10 + seededRandom(i * 37 + 9) * 14,
     delay: seededRandom(i * 29 + 13) * -20, // negative = start mid-animation
     drift: (seededRandom(i * 43 + 7) - 0.5) * 80,
   }));
 }
 
-const DUST_PARTICLES = generateDustParticles(80);
+const DUST_PARTICLES = generateDustParticles(120);
 
 function StarDustLayer() {
   return (

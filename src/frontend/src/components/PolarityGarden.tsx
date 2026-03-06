@@ -324,11 +324,17 @@ export default function PolarityGarden({ wisdomScore }: PolarityGardenProps) {
       <p className="text-white/25 text-xs mt-2 text-center leading-relaxed">
         {wisdomScore === 0
           ? "Plant your first seed — share wisdom in the rooms."
-          : wisdomScore < 100
-            ? "Your garden stirs. Keep sharing truth."
-            : wisdomScore < 500
-              ? "Flowers bloom with each insight you offer."
-              : "Your garden blooms with each insight you share."}
+          : wisdomScore < 10
+            ? `${10 - wisdomScore} WS until first bloom.`
+            : wisdomScore < 50
+              ? `${50 - wisdomScore} WS until next bloom.`
+              : wisdomScore < 100
+                ? `${100 - wisdomScore} WS until your garden awakens.`
+                : wisdomScore < 200
+                  ? `${200 - wisdomScore} WS until deeper bloom.`
+                  : wisdomScore < 500
+                    ? `${500 - wisdomScore} WS until Full Bloom — and NFT minting unlocks.`
+                    : "Your garden blooms in full radiance. NFT minting unlocked. ✦"}
       </p>
     </div>
   );
