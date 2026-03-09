@@ -18,11 +18,12 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAvatar } from "../hooks/useAvatar";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetCallerUserProfile, useIsCallerAdmin } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
+import { getStoredTotalUnread } from "../pages/Messages";
 import InviteModal from "./InviteModal";
 
 // ─── Bottom nav items (mobile — max 5) ───────────────────────────────────────
@@ -119,6 +120,15 @@ export default function Navigation() {
   const avatarUrl = useAvatar(voidId ?? "");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [totalUnread, setTotalUnread] = useState(() => getStoredTotalUnread());
+
+  // Poll unread count from localStorage every 2.5s so badge stays fresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTotalUnread(getStoredTotalUnread());
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
 
   const currentPath = routerState.location.pathname;
 
@@ -405,25 +415,11 @@ export default function Navigation() {
                   }
                 />
                 {/* Unread badge for Messages tab */}
-                {isMessagesTab &&
-                  (() => {
-                    try {
-                      const unreadKey = "void_total_unread";
-                      const count = Number(
-                        localStorage.getItem(unreadKey) ?? 0,
-                      );
-                      if (count > 0) {
-                        return (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center text-[9px] font-bold rounded-full bg-red-500 text-white leading-none">
-                            {count > 9 ? "9+" : count}
-                          </span>
-                        );
-                      }
-                    } catch {
-                      /**/
-                    }
-                    return null;
-                  })()}
+                {isMessagesTab && totalUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center text-[9px] font-bold rounded-full bg-red-500 text-white leading-none">
+                    {totalUnread > 9 ? "9+" : totalUnread}
+                  </span>
+                )}
               </div>
               <span
                 className="tracking-wide font-medium"

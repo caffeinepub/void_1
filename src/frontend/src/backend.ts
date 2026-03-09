@@ -154,6 +154,7 @@ export interface ValueOffering {
 }
 export interface UserProfile {
     voidId: string;
+    e2eePublicKey?: Uint8Array;
     cosmicHandle?: string;
 }
 export interface _CaffeineStorageRefillResult {
@@ -192,7 +193,6 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addGroupMember(groupId: string, memberVoidId: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    associateBlobWithMessage(blobId: string, messageId: string, channel: string): Promise<void>;
     buyNFT(nftId: bigint, buyerVoidId: string): Promise<void>;
     createDM(voidId1: string, voidId2: string): Promise<string>;
     createGroup(name: string, creatorVoidId: string): Promise<string>;
@@ -200,11 +200,11 @@ export interface backendInterface {
     deactivateOffering(offeringId: string, callerVoidId: string): Promise<void>;
     generateInviteToken(voidId: string): Promise<string>;
     getAllGroups(): Promise<Array<GroupInfo>>;
-    getAllUserProfiles(): Promise<Array<UserProfile>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCosmicHandle(voidId: string): Promise<string | null>;
     getDailyReflection(): Promise<string | null>;
+    getE2EEPublicKey(voidId: string): Promise<Uint8Array | null>;
     getGroupInfo(groupId: string): Promise<GroupInfo | null>;
     getGroupsForVoidId(voidId: string): Promise<Array<GroupInfo>>;
     getMarketplaceListings(category: NFTCategory | null): Promise<Array<CosmicNFT>>;
@@ -216,7 +216,6 @@ export interface backendInterface {
     getOfferingsByCreator(creatorVoidId: string): Promise<Array<ValueOffering>>;
     getPinnedMessage(channel: string): Promise<Message | null>;
     getRoyaltiesEarned(voidId: string): Promise<bigint>;
-    getSortedDMs(): Promise<Array<ChannelType>>;
     getUserNFTs(voidId: string): Promise<Array<CosmicNFT>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getValueOfferings(): Promise<Array<ValueOffering>>;
@@ -235,6 +234,7 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setCosmicHandle(voidId: string, handle: string): Promise<void>;
     setDailyReflection(text: string): Promise<void>;
+    storeE2EEPublicKey(publicKey: Uint8Array): Promise<void>;
     upvoteMessage(channel: string, messageId: string): Promise<void>;
 }
 import type { ChannelType as _ChannelType, CosmicNFT as _CosmicNFT, GroupInfo as _GroupInfo, Message as _Message, MessageType as _MessageType, NFTCategory as _NFTCategory, OfferingType as _OfferingType, UserProfile as _UserProfile, UserRole as _UserRole, ValueOffering as _ValueOffering, _CaffeineStorageRefillInformation as __CaffeineStorageRefillInformation, _CaffeineStorageRefillResult as __CaffeineStorageRefillResult } from "./declarations/backend.did.d.ts";
@@ -366,20 +366,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async associateBlobWithMessage(arg0: string, arg1: string, arg2: string): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.associateBlobWithMessage(arg0, arg1, arg2);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.associateBlobWithMessage(arg0, arg1, arg2);
-            return result;
-        }
-    }
     async buyNFT(arg0: bigint, arg1: string): Promise<void> {
         if (this.processError) {
             try {
@@ -478,32 +464,18 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getAllUserProfiles(): Promise<Array<UserProfile>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getAllUserProfiles();
-                return from_candid_vec_n12(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getAllUserProfiles();
-            return from_candid_vec_n12(this._uploadFile, this._downloadFile, result);
-        }
-    }
     async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
@@ -524,27 +496,41 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getCosmicHandle(arg0);
-                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCosmicHandle(arg0);
-            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
         }
     }
     async getDailyReflection(): Promise<string | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getDailyReflection();
-                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getDailyReflection();
+            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getE2EEPublicKey(arg0: string): Promise<Uint8Array | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getE2EEPublicKey(arg0);
+                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getE2EEPublicKey(arg0);
             return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
         }
     }
@@ -702,20 +688,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getSortedDMs(): Promise<Array<ChannelType>> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.getSortedDMs();
-                return from_candid_vec_n40(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.getSortedDMs();
-            return from_candid_vec_n40(this._uploadFile, this._downloadFile, result);
-        }
-    }
     async getUserNFTs(arg0: string): Promise<Array<CosmicNFT>> {
         if (this.processError) {
             try {
@@ -734,14 +706,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
         }
     }
     async getValueOfferings(): Promise<Array<ValueOffering>> {
@@ -902,14 +874,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.resolveInviteToken(arg0);
-                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.resolveInviteToken(arg0);
-            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n16(this._uploadFile, this._downloadFile, result);
         }
     }
     async resonateNFT(arg0: bigint, arg1: string): Promise<void> {
@@ -968,6 +940,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async storeE2EEPublicKey(arg0: Uint8Array): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.storeE2EEPublicKey(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.storeE2EEPublicKey(arg0);
+            return result;
+        }
+    }
     async upvoteMessage(arg0: string, arg1: string): Promise<void> {
         if (this.processError) {
             try {
@@ -1013,11 +999,14 @@ function from_candid_ValueOffering_n35(_uploadFile: (file: ExternalBlob) => Prom
 function from_candid__CaffeineStorageRefillResult_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: __CaffeineStorageRefillResult): _CaffeineStorageRefillResult {
     return from_candid_record_n5(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+    return value.length === 0 ? null : from_candid_UserProfile_n13(_uploadFile, _downloadFile, value[0]);
+}
+function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [Uint8Array]): Uint8Array | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
-    return value.length === 0 ? null : from_candid_UserProfile_n13(_uploadFile, _downloadFile, value[0]);
+function from_candid_opt_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+    return value.length === 0 ? null : value[0];
 }
 function from_candid_opt_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_GroupInfo]): GroupInfo | null {
     return value.length === 0 ? null : value[0];
@@ -1036,14 +1025,17 @@ function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
 }
 function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     voidId: string;
+    e2eePublicKey: [] | [Uint8Array];
     cosmicHandle: [] | [string];
 }): {
     voidId: string;
+    e2eePublicKey?: Uint8Array;
     cosmicHandle?: string;
 } {
     return {
         voidId: value.voidId,
-        cosmicHandle: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.cosmicHandle))
+        e2eePublicKey: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.e2eePublicKey)),
+        cosmicHandle: record_opt_to_undefined(from_candid_opt_n16(_uploadFile, _downloadFile, value.cosmicHandle))
     };
 }
 function from_candid_record_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1081,7 +1073,7 @@ function from_candid_record_n25(_uploadFile: (file: ExternalBlob) => Promise<Uin
         creator: value.creator,
         resonanceCount: value.resonanceCount,
         lineage: value.lineage,
-        rareTrait: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.rareTrait)),
+        rareTrait: record_opt_to_undefined(from_candid_opt_n16(_uploadFile, _downloadFile, value.rareTrait)),
         metadataJson: value.metadataJson,
         creatorVoidId: value.creatorVoidId,
         mintedAt: value.mintedAt,
@@ -1120,8 +1112,8 @@ function from_candid_record_n30(_uploadFile: (file: ExternalBlob) => Promise<Uin
         keywords: value.keywords,
         messageType: from_candid_MessageType_n31(_uploadFile, _downloadFile, value.messageType),
         timestamp: value.timestamp,
-        blobId: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.blobId)),
-        replyTo: record_opt_to_undefined(from_candid_opt_n15(_uploadFile, _downloadFile, value.replyTo))
+        blobId: record_opt_to_undefined(from_candid_opt_n16(_uploadFile, _downloadFile, value.blobId)),
+        replyTo: record_opt_to_undefined(from_candid_opt_n16(_uploadFile, _downloadFile, value.replyTo))
     };
 }
 function from_candid_record_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1241,9 +1233,6 @@ function from_candid_variant_n42(_uploadFile: (file: ExternalBlob) => Promise<Ui
         lightRoom: value.lightRoom
     } : value;
 }
-function from_candid_vec_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_UserProfile>): Array<UserProfile> {
-    return value.map((x)=>from_candid_UserProfile_n13(_uploadFile, _downloadFile, x));
-}
 function from_candid_vec_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_CosmicNFT>): Array<CosmicNFT> {
     return value.map((x)=>from_candid_CosmicNFT_n24(_uploadFile, _downloadFile, x));
 }
@@ -1294,13 +1283,16 @@ function to_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 }
 function to_candid_record_n47(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     voidId: string;
+    e2eePublicKey?: Uint8Array;
     cosmicHandle?: string;
 }): {
     voidId: string;
+    e2eePublicKey: [] | [Uint8Array];
     cosmicHandle: [] | [string];
 } {
     return {
         voidId: value.voidId,
+        e2eePublicKey: value.e2eePublicKey ? candid_some(value.e2eePublicKey) : candid_none(),
         cosmicHandle: value.cosmicHandle ? candid_some(value.cosmicHandle) : candid_none()
     };
 }

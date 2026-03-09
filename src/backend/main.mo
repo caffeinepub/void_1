@@ -4,11 +4,9 @@ import Array "mo:core/Array";
 import List "mo:core/List";
 import Blob "mo:core/Blob";
 import Time "mo:core/Time";
-import Order "mo:core/Order";
 import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
-
 import Int "mo:core/Int";
 import Nat "mo:core/Nat";
 
@@ -16,6 +14,7 @@ import Storage "blob-storage/Storage";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
+
 
 
 actor {
@@ -50,6 +49,7 @@ actor {
   public type UserProfile = {
     voidId : Text;
     cosmicHandle : ?Text;
+    e2eePublicKey : ?Blob;
   };
 
   public type ChannelType = {
@@ -108,7 +108,6 @@ actor {
     createdAt : Int;
   };
 
-  // Persistent state
   let principalProfiles = Map.empty<Principal, UserProfile>();
   let voidIdToPrincipal = Map.empty<Text, Principal>();
   let rooms = Map.empty<Text, Room>();
@@ -116,7 +115,6 @@ actor {
   let blobs = Map.empty<Text, Storage.ExternalBlob>();
   let groups = Map.empty<Text, GroupInfo>();
 
-  // NFT state
   var nftCounter : Nat = 0;
   let nfts = Map.empty<Nat, CosmicNFT>();
   let nftOwnership = Map.empty<Nat, Principal>();
@@ -176,10 +174,10 @@ actor {
     let existingProfile = principalProfiles.get(caller);
     let updatedProfile : UserProfile = switch (existingProfile) {
       case (null) {
-        { voidId; cosmicHandle = ?handle };
+        { voidId; cosmicHandle = ?handle; e2eePublicKey = null };
       };
       case (?p) {
-        { voidId = p.voidId; cosmicHandle = ?handle };
+        { voidId = p.voidId; cosmicHandle = ?handle; e2eePublicKey = p.e2eePublicKey };
       };
     };
     principalProfiles.add(caller, updatedProfile);
@@ -402,24 +400,13 @@ actor {
     channelTypes.toArray();
   };
 
-  public query ({ caller }) func getSortedDMs() : async [ChannelType] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can list DMs");
+  func createDMChannelId(voidId1 : Text, voidId2 : Text) : Text {
+    let prefix = "DM-";
+    if (voidId1 < voidId2) {
+      prefix # voidId1 # "_" # voidId2;
+    } else {
+      prefix # voidId2 # "_" # voidId1;
     };
-
-    let dmEntries = List.empty<{ channel : Text; lastActive : Int }>();
-
-    for ((channel, room) in rooms.entries()) {
-      if (channel.startsWith(#text("DM-"))) {
-        dmEntries.add({ channel; lastActive = room.lastActive });
-      };
-    };
-
-    let sorted = dmEntries.toArray().sort(
-      func(a, b) { Int.compare(b.lastActive, a.lastActive) }
-    );
-
-    sorted.map(func(entry) { #dm(entry.channel) });
   };
 
   public shared ({ caller }) func createDM(voidId1 : Text, voidId2 : Text) : async Text {
@@ -455,30 +442,6 @@ actor {
     channelId;
   };
 
-  public shared ({ caller }) func associateBlobWithMessage(blobId : Text, messageId : Text, channel : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can associate blobs");
-    };
-
-    switch (rooms.get(channel)) {
-      case (null) { Runtime.trap("Channel not found") };
-      case (?room) {
-        let messages = room.messages.toArray();
-        let updatedMessages = messages.map(
-          func(msg) {
-            if (msg.id == messageId) { { msg with blobId = ?blobId } } else { msg };
-          }
-        );
-
-        let messageList = List.empty<Message>();
-        for (msg in updatedMessages.values()) { messageList.add(msg) };
-
-        let updatedRoom : Room = { messages = messageList; lastActive = room.lastActive };
-        rooms.add(channel, updatedRoom);
-      };
-    };
-  };
-
   public shared ({ caller }) func generateInviteToken(voidId : Text) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can generate invite tokens");
@@ -504,15 +467,6 @@ actor {
     inviteTokens.get(token);
   };
 
-  func createDMChannelId(voidId1 : Text, voidId2 : Text) : Text {
-    let prefix = "DM-";
-    if (voidId1 < voidId2) {
-      prefix # voidId1 # "_" # voidId2;
-    } else {
-      prefix # voidId2 # "_" # voidId1;
-    };
-  };
-
   // Daily Reflection
   public shared ({ caller }) func setDailyReflection(text : Text) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
@@ -523,14 +477,6 @@ actor {
 
   public query func getDailyReflection() : async ?Text {
     dailyReflection;
-  };
-
-  // User Directory
-  public query ({ caller }) func getAllUserProfiles() : async [UserProfile] {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can get all user profiles");
-    };
-    principalProfiles.values().toArray();
   };
 
   // Pinned Messages
@@ -555,8 +501,6 @@ actor {
       };
     };
   };
-
-  // Group Chat Functions
 
   public shared ({ caller }) func createGroup(name : Text, creatorVoidId : Text) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -946,6 +890,38 @@ actor {
       };
       case (null) {
         Runtime.trap("Offering not found");
+      };
+    };
+  };
+
+  // E2EE Support
+  public shared ({ caller }) func storeE2EEPublicKey(publicKey : Blob) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can store E2EE public keys");
+    };
+
+    switch (principalProfiles.get(caller)) {
+      case (null) {
+        Runtime.trap("Profile not found");
+      };
+      case (?existingProfile) {
+        let updatedProfile : UserProfile = {
+          existingProfile with
+          e2eePublicKey = ?publicKey;
+        };
+        principalProfiles.add(caller, updatedProfile);
+      };
+    };
+  };
+
+  public query func getE2EEPublicKey(voidId : Text) : async ?Blob {
+    switch (voidIdToPrincipal.get(voidId)) {
+      case (null) { null };
+      case (?owner) {
+        switch (principalProfiles.get(owner)) {
+          case (null) { null };
+          case (?profile) { profile.e2eePublicKey };
+        };
       };
     };
   };

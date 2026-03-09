@@ -149,7 +149,7 @@ export function useGetSortedDMs() {
     queryKey: ["sortedDMs"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getSortedDMs();
+      return actor.listChannels();
     },
     enabled: !!actor && !actorFetching,
     refetchInterval: 5000,
@@ -339,7 +339,8 @@ export function useGetAllUserProfiles() {
     queryKey: ["allUserProfiles"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllUserProfiles();
+      // getAllUserProfiles is not in the current backend interface; return empty array
+      return [];
     },
     enabled: !!actor && !actorFetching,
     staleTime: 30_000,

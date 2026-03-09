@@ -17,6 +17,7 @@ import SplashScreen from "./components/SplashScreen";
 import VoidSage from "./components/VoidSage";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
+import ChatScreen from "./pages/ChatScreen";
 import CreatorPortal from "./pages/CreatorPortal";
 import DMList from "./pages/DMList";
 import DMView from "./pages/DMView";
@@ -24,6 +25,7 @@ import DarkRoom from "./pages/DarkRoom";
 import GroupView from "./pages/GroupView";
 import InviteLanding from "./pages/InviteLanding";
 import LightRoom from "./pages/LightRoom";
+import Messages from "./pages/Messages";
 import MiningPage from "./pages/MiningPage";
 import NFTMarketplace from "./pages/NFTMarketplace";
 import ProfileSettings from "./pages/ProfileSettings";
@@ -150,13 +152,13 @@ const darkRoomRoute = createRoute({
 const dmListRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dms",
-  component: DMList,
+  component: Messages,
 });
 
 const dmViewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dms/$channelId",
-  component: DMView,
+  component: ChatScreen,
 });
 
 const profileRoute = createRoute({

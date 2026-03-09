@@ -60,6 +60,7 @@ export type OfferingType = { 'art' : null } |
   { 'oneOnOne' : null };
 export interface UserProfile {
   'voidId' : string,
+  'e2eePublicKey' : [] | [Uint8Array],
   'cosmicHandle' : [] | [string],
 }
 export type UserRole = { 'admin' : null } |
@@ -105,7 +106,6 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addGroupMember' : ActorMethod<[string, string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'associateBlobWithMessage' : ActorMethod<[string, string, string], undefined>,
   'buyNFT' : ActorMethod<[bigint, string], undefined>,
   'createDM' : ActorMethod<[string, string], string>,
   'createGroup' : ActorMethod<[string, string], string>,
@@ -116,11 +116,11 @@ export interface _SERVICE {
   'deactivateOffering' : ActorMethod<[string, string], undefined>,
   'generateInviteToken' : ActorMethod<[string], string>,
   'getAllGroups' : ActorMethod<[], Array<GroupInfo>>,
-  'getAllUserProfiles' : ActorMethod<[], Array<UserProfile>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCosmicHandle' : ActorMethod<[string], [] | [string]>,
   'getDailyReflection' : ActorMethod<[], [] | [string]>,
+  'getE2EEPublicKey' : ActorMethod<[string], [] | [Uint8Array]>,
   'getGroupInfo' : ActorMethod<[string], [] | [GroupInfo]>,
   'getGroupsForVoidId' : ActorMethod<[string], Array<GroupInfo>>,
   'getMarketplaceListings' : ActorMethod<
@@ -138,7 +138,6 @@ export interface _SERVICE {
   'getOfferingsByCreator' : ActorMethod<[string], Array<ValueOffering>>,
   'getPinnedMessage' : ActorMethod<[string], [] | [Message]>,
   'getRoyaltiesEarned' : ActorMethod<[string], bigint>,
-  'getSortedDMs' : ActorMethod<[], Array<ChannelType>>,
   'getUserNFTs' : ActorMethod<[string], Array<CosmicNFT>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getValueOfferings' : ActorMethod<[], Array<ValueOffering>>,
@@ -174,6 +173,7 @@ export interface _SERVICE {
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setCosmicHandle' : ActorMethod<[string, string], undefined>,
   'setDailyReflection' : ActorMethod<[string], undefined>,
+  'storeE2EEPublicKey' : ActorMethod<[Uint8Array], undefined>,
   'upvoteMessage' : ActorMethod<[string, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

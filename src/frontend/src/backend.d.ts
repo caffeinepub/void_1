@@ -65,6 +65,7 @@ export interface ValueOffering {
 }
 export interface UserProfile {
     voidId: string;
+    e2eePublicKey?: Uint8Array;
     cosmicHandle?: string;
 }
 export enum MessageType {
@@ -92,7 +93,6 @@ export enum UserRole {
 export interface backendInterface {
     addGroupMember(groupId: string, memberVoidId: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    associateBlobWithMessage(blobId: string, messageId: string, channel: string): Promise<void>;
     buyNFT(nftId: bigint, buyerVoidId: string): Promise<void>;
     createDM(voidId1: string, voidId2: string): Promise<string>;
     createGroup(name: string, creatorVoidId: string): Promise<string>;
@@ -100,11 +100,11 @@ export interface backendInterface {
     deactivateOffering(offeringId: string, callerVoidId: string): Promise<void>;
     generateInviteToken(voidId: string): Promise<string>;
     getAllGroups(): Promise<Array<GroupInfo>>;
-    getAllUserProfiles(): Promise<Array<UserProfile>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCosmicHandle(voidId: string): Promise<string | null>;
     getDailyReflection(): Promise<string | null>;
+    getE2EEPublicKey(voidId: string): Promise<Uint8Array | null>;
     getGroupInfo(groupId: string): Promise<GroupInfo | null>;
     getGroupsForVoidId(voidId: string): Promise<Array<GroupInfo>>;
     getMarketplaceListings(category: NFTCategory | null): Promise<Array<CosmicNFT>>;
@@ -116,7 +116,6 @@ export interface backendInterface {
     getOfferingsByCreator(creatorVoidId: string): Promise<Array<ValueOffering>>;
     getPinnedMessage(channel: string): Promise<Message | null>;
     getRoyaltiesEarned(voidId: string): Promise<bigint>;
-    getSortedDMs(): Promise<Array<ChannelType>>;
     getUserNFTs(voidId: string): Promise<Array<CosmicNFT>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getValueOfferings(): Promise<Array<ValueOffering>>;
@@ -135,5 +134,6 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setCosmicHandle(voidId: string, handle: string): Promise<void>;
     setDailyReflection(text: string): Promise<void>;
+    storeE2EEPublicKey(publicKey: Uint8Array): Promise<void>;
     upvoteMessage(channel: string, messageId: string): Promise<void>;
 }

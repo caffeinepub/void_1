@@ -27,6 +27,12 @@ import {
   useSaveCallerUserProfile,
 } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
+import {
+  isNotificationEnabled,
+  requestNotificationPermission,
+  setNotificationEnabled,
+  subscribeToVAPID,
+} from "../lib/NotificationService";
 import { getKeyFingerprint } from "../lib/crypto";
 import { registerKnownUser } from "../lib/userRegistry";
 
@@ -115,16 +121,10 @@ export default function ProfileSettings() {
     }
   }, [voidId]);
 
-  // Load notifications preference
+  // Load notifications preference from NotificationService
   useEffect(() => {
-    if (!voidId) return;
-    try {
-      const raw = localStorage.getItem(`void_notifications_${voidId}`);
-      if (raw) setNotificationsEnabled(JSON.parse(raw) === true);
-    } catch {
-      // fail silently
-    }
-  }, [voidId]);
+    setNotificationsEnabled(isNotificationEnabled());
+  }, []);
 
   // Load founder mode state
   useEffect(() => {
@@ -242,19 +242,34 @@ export default function ProfileSettings() {
 
   const handleToggleNotifications = async (checked: boolean) => {
     if (checked) {
-      if ("Notification" in window) {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission !== "granted") {
-            toast.error("Notification permission denied");
-            return;
-          }
-        } catch {
-          // fall through — some browsers don't support requestPermission
-        }
+      // Request permission via NotificationService
+      const permission = await requestNotificationPermission();
+      if (permission !== "granted") {
+        toast.error(
+          "Notification permission denied. Enable it in your browser settings.",
+        );
+        return;
       }
+
+      // Subscribe to VAPID push
+      const subscription = await subscribeToVAPID();
+      if (subscription) {
+        toast.success("Push notifications enabled", {
+          description: "You'll receive alerts for new messages.",
+        });
+      } else {
+        toast.success("Notifications enabled", {
+          description:
+            "Browser push not supported — local alerts will be used.",
+        });
+      }
+    } else {
+      toast.success("Notifications disabled");
     }
+
     setNotificationsEnabled(checked);
+    setNotificationEnabled(checked);
+    // Also keep legacy localStorage key for backward compatibility
     try {
       localStorage.setItem(
         `void_notifications_${voidId}`,
@@ -263,7 +278,6 @@ export default function ProfileSettings() {
     } catch {
       // fail silently
     }
-    toast.success(checked ? "Notifications enabled" : "Notifications disabled");
   };
 
   const handleRemoveBookmark = (messageId: string) => {
