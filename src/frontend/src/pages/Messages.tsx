@@ -100,10 +100,17 @@ export function markChatReadLocal(chatId: string): void {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getDMPartner(channelId: string, myVoidId: string): string {
-  const withoutPrefix = channelId.replace("DM-", "");
-  const parts = withoutPrefix.split("_");
-  const partner = parts.find((p) => !myVoidId.includes(p));
-  return partner ? `@void_shadow_${partner}:canister` : channelId;
+  // Channel format: DM-@void_shadow_A:canister_@void_shadow_B:canister
+  // Split on _@ to correctly extract both full voidIds (voidIds contain underscores)
+  const body = channelId.startsWith("DM-") ? channelId.slice(3) : channelId;
+  const separator = "_@void_shadow_";
+  const sepIdx = body.indexOf(separator);
+  if (sepIdx !== -1) {
+    const id1 = body.slice(0, sepIdx);
+    const id2 = `@void_shadow_${body.slice(sepIdx + separator.length)}`;
+    return id1 === myVoidId ? id2 : id1;
+  }
+  return channelId;
 }
 
 function getChannelId(channel: ChannelType): string {
