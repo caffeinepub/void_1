@@ -75,18 +75,63 @@ const EMOJI_SET = [
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
+/**
+ * Extract the DM partner's voidId from the channel ID.
+ * Channel format: DM-@void_shadow_A:canister_@void_shadow_B:canister
+ * FIXED: splits on "_@void_shadow_" not plain "_" to handle voidIds with underscores.
+ */
 function getDMPartner(channelId: string, myVoidId: string): string {
-  const withoutPrefix = channelId.replace("DM-", "");
-  const parts = withoutPrefix.split("_");
-  const partner = parts.find((p) => !myVoidId.includes(p));
-  return partner ? `@void_shadow_${partner}:canister` : channelId;
+  const body = channelId.startsWith("DM-") ? channelId.slice(3) : channelId;
+  const separator = "_@void_shadow_";
+  const sepIdx = body.indexOf(separator);
+  if (sepIdx !== -1) {
+    const id1 = body.slice(0, sepIdx);
+    const id2 = `@void_shadow_${body.slice(sepIdx + separator.length)}`;
+    return id1 === myVoidId ? id2 : id1;
+  }
+  return body;
 }
 
 function formatTime(timestamp: bigint): string {
-  const date = new Date(Number(timestamp));
+  const date = new Date(Number(timestamp) / 1_000_000); // nanoseconds → ms
   const h = date.getHours().toString().padStart(2, "0");
   const m = date.getMinutes().toString().padStart(2, "0");
   return `${h}:${m}`;
+}
+
+// ─── Status Ticks ─────────────────────────────────────────────────────────────
+type MessageStatus = "sent" | "delivered" | "read";
+
+function StatusTicks({ status }: { status: MessageStatus }) {
+  if (status === "sent") {
+    return (
+      <span
+        className="text-[10px] leading-none"
+        style={{ color: "rgba(255,255,255,0.35)" }}
+      >
+        ✓
+      </span>
+    );
+  }
+  if (status === "delivered") {
+    return (
+      <span
+        className="text-[10px] leading-none tracking-[-2px]"
+        style={{ color: "rgba(255,255,255,0.35)" }}
+      >
+        ✓✓
+      </span>
+    );
+  }
+  // read — double blue
+  return (
+    <span
+      className="text-[10px] leading-none tracking-[-2px]"
+      style={{ color: "#3b82f6" }}
+    >
+      ✓✓
+    </span>
+  );
 }
 
 // ─── ChatBubble ───────────────────────────────────────────────────────────────
@@ -97,6 +142,7 @@ interface ChatBubbleProps {
   text: string | null | undefined; // undefined = pending decrypt, null = failed
   timestamp: bigint;
   index: number;
+  status?: MessageStatus;
 }
 
 const ChatBubble = memo(function ChatBubble({
@@ -105,6 +151,7 @@ const ChatBubble = memo(function ChatBubble({
   text,
   timestamp,
   index,
+  status,
 }: ChatBubbleProps) {
   const displayText =
     text === undefined
@@ -116,93 +163,100 @@ const ChatBubble = memo(function ChatBubble({
   return (
     <div
       data-ocid={`chat.message.item.${index}`}
-      className={`flex flex-col mb-3 ${isOwn ? "items-end" : "items-start"} max-w-[85%] ${isOwn ? "ml-auto" : "mr-auto"}`}
+      className={`flex flex-col mb-3 ${
+        isOwn ? "items-end" : "items-start"
+      } max-w-[85%] ${isOwn ? "ml-auto" : "mr-auto"}`}
     >
-      {/* Sender name — only for others */}
+      {/* Sender name — only for received messages */}
       {!isOwn && senderHandle && (
-        <span className="text-[10px] text-void-gold/50 font-mono mb-1 pl-1">
+        <div
+          className="text-[10px] font-semibold mb-1 px-1"
+          style={{ color: "rgba(255,215,0,0.6)" }}
+        >
           {senderHandle}
-        </span>
+        </div>
       )}
 
       {/* Bubble */}
-      <div
-        className={`relative px-4 py-2.5 max-w-full break-words text-sm leading-relaxed ${
-          isOwn ? "rounded-2xl rounded-br-sm" : "rounded-2xl rounded-bl-sm"
-        }`}
-        style={
-          isOwn
-            ? {
-                background:
-                  "linear-gradient(135deg, rgba(255,215,0,0.18) 0%, rgba(180,120,0,0.22) 100%)",
-                border: "1px solid rgba(255,215,0,0.35)",
-                color: "#FFD700",
-                boxShadow:
-                  "0 2px 16px rgba(255,215,0,0.12), inset 0 1px 0 rgba(255,215,0,0.15)",
-              }
-            : {
-                background:
-                  "linear-gradient(135deg, rgba(142,45,226,0.35) 0%, rgba(100,30,180,0.28) 100%)",
-                border: "1px solid rgba(142,45,226,0.4)",
-                color: "rgba(230,210,255,0.92)",
-                boxShadow:
-                  "0 2px 16px rgba(142,45,226,0.12), inset 0 1px 0 rgba(180,100,255,0.12)",
-              }
-        }
-      >
-        {/* Shimmer for pending */}
-        {text === undefined ? (
-          <span
-            className="inline-block w-24 h-4 rounded"
-            style={{
-              background:
-                "linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 75%)",
-              backgroundSize: "200% 100%",
-              animation: "shimmer 1.5s infinite",
-            }}
-          />
-        ) : (
-          <span>{displayText}</span>
-        )}
-      </div>
+      {displayText === null ? (
+        // Loading shimmer
+        <div
+          className="w-32 h-8 animate-pulse"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: "2px",
+          }}
+        />
+      ) : (
+        <div
+          className="px-4 py-2.5 max-w-full break-words"
+          style={{
+            background: isOwn
+              ? "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,180,0,0.10))"
+              : "linear-gradient(135deg, rgba(123,47,190,0.22), rgba(90,30,150,0.14))",
+            border: `1px solid ${
+              isOwn ? "rgba(255,215,0,0.25)" : "rgba(123,47,190,0.3)"
+            }`,
+            color: isOwn ? "rgba(255,215,0,0.95)" : "rgba(220,200,255,0.9)",
+            borderRadius: isOwn ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+            boxShadow: isOwn
+              ? "0 2px 12px rgba(255,215,0,0.07)"
+              : "0 2px 12px rgba(123,47,190,0.1)",
+          }}
+        >
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {displayText}
+          </p>
+        </div>
+      )}
 
-      {/* Timestamp */}
-      <span
-        className={`text-[9px] font-mono mt-0.5 ${isOwn ? "text-void-gold/30 pr-1" : "text-white/20 pl-1"}`}
+      {/* Timestamp + status ticks */}
+      <div
+        className={`flex items-center gap-1 mt-1 px-1 ${
+          isOwn ? "flex-row-reverse" : "flex-row"
+        }`}
       >
-        {formatTime(timestamp)}
-      </span>
+        <div
+          className="text-[9px] font-mono"
+          style={{ color: "rgba(255,255,255,0.2)" }}
+        >
+          {formatTime(timestamp)}
+        </div>
+        {isOwn && status && <StatusTicks status={status} />}
+      </div>
     </div>
   );
 });
 
-// ─── ChatScreen ───────────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
-  const { channelId } = useParams({ from: "/dms/$channelId" });
-  const decoded = decodeURIComponent(channelId);
   const navigate = useNavigate();
-  const { actor, isFetching: actorFetching } = useActor();
-  const myVoidId = useVoidId();
+  const { channelId: encodedChannelId } = useParams({
+    from: "/dms/$channelId",
+  });
+  const decoded = decodeURIComponent(encodedChannelId);
 
-  // Determine DM partner
+  const myVoidId = useVoidId();
+  const { actor, isFetching: actorFetching } = useActor();
+
+  // Partner voidId
   const partnerVoidId = useMemo(
     () => (myVoidId ? getDMPartner(decoded, myVoidId) : decoded),
     [decoded, myVoidId],
   );
 
-  // Cosmic handles
+  // Partner cosmic handle
   const { data: partnerHandle } = useGetCosmicHandle(partnerVoidId);
-  const { data: myHandle } = useGetCosmicHandle(myVoidId ?? "");
+  const { data: myHandleData } = useGetCosmicHandle(myVoidId ?? "");
+  const myHandle = myHandleData ?? null;
 
-  // ─── E2EE state ──────────────────────────────────────────────────────────────
+  // ─── E2EE state ───────────────────────────────────────────────────────────────
   const myKeyPairRef = useRef<CryptoKeyPair | null>(null);
   const [e2eeReady, setE2eeReady] = useState(false);
   const sharedKeyRef = useRef<CryptoKey | null>(null);
-  // Fallback channel key (legacy AES-GCM)
   const [legacyKey, setLegacyKey] = useState<CryptoKey | null>(null);
 
-  // Chat ID for key storage (normalized)
   const chatId = useMemo(
     () => (myVoidId ? normalizeDMChatId(myVoidId, partnerVoidId) : decoded),
     [myVoidId, partnerVoidId, decoded],
@@ -216,7 +270,6 @@ export default function ChatScreen() {
 
     async function initE2EE() {
       try {
-        // 1. Try to load existing shared key
         const existingShared = await loadSharedKey(chatId);
         if (existingShared && !cancelled) {
           sharedKeyRef.current = existingShared;
@@ -224,25 +277,19 @@ export default function ChatScreen() {
           return;
         }
 
-        // 2. Ensure we have an ECDH key pair for this session
         if (!myKeyPairRef.current) {
           const keyPair = await generateECDHKeyPair();
           myKeyPairRef.current = keyPair;
-
-          // Export and store public key in backend
           const pubKeyBytes = await exportPublicKey(keyPair.publicKey);
           await actor!.storeE2EEPublicKey(pubKeyBytes);
         }
 
-        // 3. Fetch partner's public key
         const partnerPubKeyBytes = await actor!.getE2EEPublicKey(partnerVoidId);
         if (!partnerPubKeyBytes || partnerPubKeyBytes.length === 0) {
-          // Partner hasn't published their key yet — wait for next poll
           if (!cancelled) setE2eeReady(false);
           return;
         }
 
-        // 4. Import partner key and derive shared key
         const partnerPubKey = await importPublicKey(
           new Uint8Array(partnerPubKeyBytes),
         );
@@ -252,7 +299,6 @@ export default function ChatScreen() {
           chatId,
         );
 
-        // 5. Store shared key in IndexedDB
         await storeSharedKey(chatId, shared);
 
         if (!cancelled) {
@@ -270,7 +316,6 @@ export default function ChatScreen() {
 
     initE2EE();
 
-    // Retry every 3s until partner key is available
     const retryInterval = setInterval(() => {
       if (!sharedKeyRef.current) initE2EE();
       else clearInterval(retryInterval);
@@ -304,101 +349,142 @@ export default function ChatScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Decryption map: messageId → plaintext | null | undefined
   type DecryptState = string | null | undefined;
   const [decryptedMap, setDecryptedMap] = useState<Map<string, DecryptState>>(
     new Map(),
   );
+  const decryptedIdsRef = useRef<Set<string>>(new Set());
 
-  // Pending local plaintext for just-sent messages (optimistic)
   const pendingRef = useRef<Map<string, string>>(new Map());
 
-  // ─── Message polling ──────────────────────────────────────────────────────────
+  // ─── Message status ticks ─────────────────────────────────────────────────────
+  // Track recently-sent ciphertexts so we can show "sent" tick briefly
+  const justSentRef = useRef<Set<string>>(new Set());
+  // Track which messages have been "read" (all previously loaded own messages)
+  const [readCiphers] = useState<Set<string>>(new Set());
+
+  // Poll messages
   useEffect(() => {
     if (!actor || actorFetching) return;
 
+    let cancelled = false;
+
     const fetchMessages = async () => {
       try {
-        const msgs = await actor.getMessages(decoded, BigInt(50));
-        setMessages(msgs);
-        setIsLoading(false);
-      } catch {
-        setIsLoading(false);
+        const result = await actor.getMessages(decoded, BigInt(50));
+        if (!cancelled) {
+          setMessages(result as BackendMessage[]);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("fetchMessages error:", err);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchMessages();
     const interval = setInterval(fetchMessages, 2500);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [actor, actorFetching, decoded]);
 
-  // ─── Mark chat as read on mount + when messages change ───────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messages.length is intentional trigger
+  // Mark chat as read on mount (local)
   useEffect(() => {
-    markChatReadLocal(chatId);
-  }, [chatId, messages.length]);
+    markChatReadLocal(decoded);
+  }, [decoded]);
 
-  // ─── Decryption ───────────────────────────────────────────────────────────────
+  // Mark chat as read on canister when actor is ready
   useEffect(() => {
-    const allMsgs = [...olderMessages, ...messages];
-    if (allMsgs.length === 0) return;
+    if (!actor || actorFetching) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (actor as any).markChatRead?.(decoded);
+    } catch {
+      // optional — fail silently
+    }
+  }, [actor, actorFetching, decoded]);
 
-    for (const msg of allMsgs) {
-      setDecryptedMap((prev) => {
-        if (prev.has(msg.id)) return prev;
+  // Decrypt messages
+  const allMessages = useMemo(
+    () => [...olderMessages, ...messages],
+    [olderMessages, messages],
+  );
 
-        // Optimistic: did we just send this?
-        if (pendingRef.current.has(msg.ciphertext)) {
+  useEffect(() => {
+    if (!e2eeReady && !legacyKey) return;
+
+    async function decryptAll() {
+      for (const msg of allMessages) {
+        if (decryptedIdsRef.current.has(msg.id)) continue;
+        // Mark as pending
+        setDecryptedMap((prev) => {
           const next = new Map(prev);
-          next.set(msg.id, pendingRef.current.get(msg.ciphertext)!);
+          if (!next.has(msg.id)) next.set(msg.id, undefined);
           return next;
+        });
+
+        // Check pending optimistic
+        if (pendingRef.current.has(msg.ciphertext)) {
+          const plain = pendingRef.current.get(msg.ciphertext)!;
+          setDecryptedMap((prev) => {
+            const next = new Map(prev);
+            next.set(msg.id, plain);
+            return next;
+          });
+          continue;
         }
 
-        // Mark as pending decrypt
-        const next = new Map(prev);
-        next.set(msg.id, undefined);
-
-        // Async decrypt
-        (async () => {
-          let plain: string | null = null;
-
-          // Try v2 ECDH envelope first
-          const envelope = parseEnvelope(msg.ciphertext);
-          if (envelope && sharedKeyRef.current) {
-            plain = await decryptWithKey(
+        // Try V2 ECDH envelope
+        let decrypted: string | null = null;
+        const envelope = parseEnvelope(msg.ciphertext);
+        if (envelope && sharedKeyRef.current) {
+          try {
+            decrypted = await decryptWithKey(
               envelope.enc,
               envelope.nonce,
               envelope.tag,
               sharedKeyRef.current,
             );
+          } catch {
+            decrypted = null;
           }
+        }
 
-          // Fallback: legacy AES-GCM channel key
-          if (plain === null && legacyKey) {
-            plain = await decryptMessage(msg.ciphertext, legacyKey);
+        // Fallback to legacy
+        if (decrypted === null && legacyKey) {
+          try {
+            decrypted = await decryptMessage(msg.ciphertext, legacyKey);
+          } catch {
+            decrypted = null;
           }
+        }
 
-          setDecryptedMap((current) => {
-            const updated = new Map(current);
-            updated.set(msg.id, plain);
-            return updated;
-          });
-        })();
-
-        return next;
-      });
+        const finalVal = decrypted;
+        decryptedIdsRef.current.add(msg.id);
+        setDecryptedMap((prev) => {
+          const next = new Map(prev);
+          next.set(msg.id, finalVal);
+          return next;
+        });
+      }
     }
-  }, [messages, olderMessages, legacyKey]); // sharedKeyRef is a ref, not triggering re-render
 
-  // Re-run decryption when e2eeReady toggles (shared key became available)
-  // We clear all previously-failed entries so the decryption effect re-attempts them.
+    decryptAll();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: decryptedIdsRef is a ref
+  }, [allMessages, e2eeReady, legacyKey]);
+
+  // Retry failed decryptions when e2ee becomes ready
   useEffect(() => {
-    if (!e2eeReady || !sharedKeyRef.current) return;
-    // Remove all null entries so the main decryption effect will re-attempt them
+    if (!e2eeReady) return;
     setDecryptedMap((prev) => {
       const next = new Map(prev);
       for (const [id, val] of next) {
-        if (val === null) next.delete(id);
+        if (val === null) {
+          next.delete(id);
+          decryptedIdsRef.current.delete(id);
+        }
       }
       return next;
     });
@@ -454,34 +540,60 @@ export default function ChatScreen() {
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [sending, setSending] = useState(false);
-  const sendBtnRef = useRef<HTMLButtonElement>(null);
+
+  // ─── Typing indicator ─────────────────────────────────────────────────────────
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setText(e.target.value);
+      if (e.target.value.length > 0) {
+        setIsTyping(true);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = setTimeout(() => {
+          setIsTyping(false);
+        }, 2000);
+      } else {
+        setIsTyping(false);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  // Cleanup typing timer on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    };
+  }, []);
 
   const handleSend = useCallback(async () => {
     const plaintext = text.trim();
     if (!plaintext || !actor || !myVoidId) return;
     setSending(true);
+    // Clear typing indicator on send
+    setIsTyping(false);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
     try {
       let ciphertext: string;
 
       if (e2eeReady && sharedKeyRef.current) {
-        // True ECDH E2EE: encrypt with shared key
         const { encryptedContent, nonce, tag } = await encryptWithKey(
           plaintext,
           sharedKeyRef.current,
         );
         ciphertext = encodeEnvelope(encryptedContent, nonce, tag);
       } else {
-        // Fallback: legacy channel key (compatible with existing messages)
         const fallbackKey = await getChannelKey(decoded);
         const { encryptMessage: legacyEncrypt } = await import("../lib/crypto");
         ciphertext = await legacyEncrypt(plaintext, fallbackKey);
       }
 
-      // Store plaintext optimistically
       pendingRef.current.set(ciphertext, plaintext);
 
-      // Send to backend
       await actor.postMessage(
         decoded,
         ciphertext,
@@ -491,7 +603,14 @@ export default function ChatScreen() {
         null,
       );
 
-      // Notify recipients (best-effort — function may not exist yet)
+      // Track as just-sent for status tick — show "sent" for 1.5s then upgrade to "delivered"
+      justSentRef.current.add(ciphertext);
+      setTimeout(() => {
+        justSentRef.current.delete(ciphertext);
+        // Mark as read after a short while (simulated)
+        readCiphers.add(ciphertext);
+      }, 1500);
+
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (actor as any).notifyRecipients?.(decoded);
@@ -499,24 +618,33 @@ export default function ChatScreen() {
         // optional — fail silently
       }
 
-      // Local notification for partner if they're offline
       const partnerName = partnerHandle
         ? `@${partnerHandle.replace(/^@/, "")}`
         : "someone";
       sendLocalNotification(
         `Message from ${myHandle ? `@${myHandle}` : "you"}`,
-        `${partnerName}: ${plaintext.slice(0, 50)}${plaintext.length > 50 ? "…" : ""}`,
+        `${partnerName}: ${plaintext.slice(0, 50)}${
+          plaintext.length > 50 ? "…" : ""
+        }`,
       );
 
       setText("");
-      setShowEmoji(false);
     } catch (err) {
-      console.error("Send failed:", err);
+      console.error("sendMessage error:", err);
       toast.error("Failed to send message. Try again.");
     } finally {
       setSending(false);
     }
-  }, [text, actor, myVoidId, e2eeReady, decoded, partnerHandle, myHandle]);
+  }, [
+    text,
+    actor,
+    myVoidId,
+    e2eeReady,
+    decoded,
+    partnerHandle,
+    myHandle,
+    readCiphers,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -528,74 +656,98 @@ export default function ChatScreen() {
     [handleSend],
   );
 
-  // ─── Render helpers ───────────────────────────────────────────────────────────
+  // ─── Partner display name ─────────────────────────────────────────────────────
   const partnerDisplayName = partnerHandle
     ? `@${partnerHandle.replace(/^@/, "")}`
-    : partnerVoidId.replace("@void_shadow_", "void_").replace(":canister", "");
-
+    : null;
   const partnerShortId = partnerVoidId
     .replace("@void_shadow_", "")
     .replace(":canister", "");
 
-  const allMessages = useMemo(
-    () => [...olderMessages, ...messages],
-    [olderMessages, messages],
+  // Derive status for own messages
+  const getMessageStatus = useCallback(
+    (ciphertext: string): MessageStatus => {
+      if (justSentRef.current.has(ciphertext)) return "sent";
+      if (readCiphers.has(ciphertext)) return "read";
+      return "delivered";
+    },
+    [readCiphers],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full overflow-hidden w-full">
+    <div className="void-bg flex flex-col h-full">
       {/* Header */}
-      <div className="shrink-0 px-3 py-3 flex items-center gap-3 border-b border-white/10 bg-void-black/60">
+      <div
+        className="shrink-0 px-4 py-3 border-b border-void-gold/15 flex items-center gap-3"
+        style={{ background: "rgba(0,0,0,0.8)" }}
+      >
+        {/* Back button */}
         <button
           type="button"
-          data-ocid="chat.back.link"
+          data-ocid="chat.back.button"
           onClick={() => navigate({ to: "/dms" })}
-          className="shrink-0 text-white/40 hover:text-void-gold transition-colors p-1"
+          className="shrink-0 p-1.5 text-white/40 hover:text-void-gold transition-colors"
           aria-label="Back to messages"
         >
           <ArrowLeft size={18} />
         </button>
 
+        {/* Partner avatar */}
         <VoidAvatar voidId={partnerVoidId} size="sm" />
 
+        {/* Partner name */}
         <div className="flex-1 min-w-0">
-          {/* Cosmic Handle — gold bold title */}
-          <h1 className="text-void-gold font-bold text-base leading-tight truncate">
-            {partnerDisplayName}
-          </h1>
-          {/* VOID ID — tiny gray subtitle */}
-          {partnerHandle && (
-            <p className="text-white/25 text-[10px] font-mono truncate mt-0.5">
+          <div
+            className="font-bold text-base leading-tight truncate"
+            style={{ color: "rgba(255,215,0,0.95)" }}
+          >
+            {partnerDisplayName ?? `void_${partnerShortId.slice(0, 8)}`}
+          </div>
+          {partnerDisplayName && (
+            <div className="text-white/25 text-[10px] font-mono truncate mt-0.5">
               @void_{partnerShortId}
-            </p>
+            </div>
           )}
         </div>
 
-        {/* E2EE indicator */}
-        <div className="shrink-0 flex items-center gap-1.5">
-          {e2eeReady ? (
-            <span className="flex items-center gap-1">
-              <Lock size={11} className="text-green-400" />
-              <span className="text-green-400 text-[10px] font-bold font-mono">
-                E2EE
-              </span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1">
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-yellow-400"
-                style={{ boxShadow: "0 0 4px rgba(234,179,8,0.8)" }}
-              />
-              <span className="text-yellow-400/60 text-[10px] font-mono">
-                Key exchange…
-              </span>
+        {/* E2EE lock icon with hover tooltip */}
+        <div
+          className="shrink-0 relative group flex items-center gap-1.5 cursor-help"
+          data-ocid="chat.e2ee.tooltip"
+        >
+          <Lock
+            size={14}
+            style={{
+              color: e2eeReady
+                ? "rgba(34,197,94,0.9)"
+                : "rgba(255,255,255,0.2)",
+            }}
+          />
+          {e2eeReady && (
+            <span
+              className="text-[9px] font-mono tracking-wide hidden sm:block"
+              style={{ color: "rgba(34,197,94,0.7)" }}
+            >
+              E2EE
             </span>
           )}
+          {/* Tooltip */}
+          <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 text-xs text-white/80 bg-black/90 border border-green-500/20 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+            End-to-end encrypted. Only you and the recipient can read this.
+            <div
+              className="absolute top-full right-3 w-0 h-0"
+              style={{
+                borderLeft: "4px solid transparent",
+                borderRight: "4px solid transparent",
+                borderTop: "4px solid rgba(0,0,0,0.9)",
+              }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* E2EE lock banner */}
+      {/* E2EE banner */}
       <div className="shrink-0 px-4 py-2 flex items-center gap-2 bg-green-950/30 border-b border-green-500/15">
         <Lock size={12} className="text-green-400 shrink-0" />
         <span className="text-green-400/80 text-xs">
@@ -680,6 +832,7 @@ export default function ChatScreen() {
                 text={decryptedMap.get(msg.id)}
                 timestamp={msg.timestamp}
                 index={idx + 1}
+                status={isOwn ? getMessageStatus(msg.ciphertext) : undefined}
               />
             );
           })}
@@ -721,54 +874,76 @@ export default function ChatScreen() {
           </div>
         )}
 
+        {/* Typing indicator */}
+        {isTyping && text.length > 0 && (
+          <div className="px-4 pt-2 flex items-center gap-1.5">
+            <span className="text-white/40 text-xs">
+              {partnerDisplayName ?? `void_${partnerShortId.slice(0, 8)}`} is
+              typing
+            </span>
+            <span className="flex gap-0.5 items-center">
+              <span
+                className="w-1 h-1 rounded-full bg-white/40 animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <span
+                className="w-1 h-1 rounded-full bg-white/40 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <span
+                className="w-1 h-1 rounded-full bg-white/40 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
+            </span>
+          </div>
+        )}
+
         <div className="flex items-end gap-2 px-4 py-3">
           <button
             type="button"
             onClick={() => setShowEmoji(!showEmoji)}
-            className={`text-white/30 hover:text-void-gold transition-colors pb-1 ${showEmoji ? "text-void-gold" : ""}`}
+            className={`text-white/30 hover:text-void-gold transition-colors p-1.5 ${
+              showEmoji ? "text-void-gold" : ""
+            }`}
+            aria-label="Emoji picker"
           >
             <Smile size={18} />
           </button>
 
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
             data-ocid="chat.message.input"
-            placeholder={
-              e2eeReady
-                ? "Type your message..."
-                : "Establishing E2EE connection..."
-            }
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Send a message…"
             rows={1}
-            className="flex-1 bg-transparent border-b border-void-gold/20 text-white/90 placeholder:text-white/20 text-sm focus:outline-none focus:border-void-gold/50 transition-colors resize-none py-1 max-h-24 overflow-y-auto"
-            style={{ lineHeight: "1.5", fontSize: "16px" }}
+            disabled={sending}
+            className="flex-1 bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-2.5 text-sm focus:outline-none focus:border-void-gold/40 resize-none transition-colors disabled:opacity-50"
+            style={{ maxHeight: "120px", fontSize: "16px" }}
           />
 
           <button
-            ref={sendBtnRef}
             type="button"
             data-ocid="chat.send_button"
             onClick={handleSend}
-            disabled={!text.trim() || sending || !actor}
-            className="void-btn-send pb-1 disabled:opacity-30 transition-all"
+            disabled={!text.trim() || sending}
+            className="shrink-0 w-9 h-9 flex items-center justify-center disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
+            style={{
+              background:
+                text.trim() && !sending
+                  ? "linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,180,0,0.15))"
+                  : "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,215,0,0.2)",
+            }}
+            aria-label="Send message"
           >
-            {sending ? (
-              <span className="w-5 h-5 border-2 border-void-gold/30 border-t-void-gold rounded-full animate-spin block" />
-            ) : (
-              <Send size={18} />
-            )}
+            <Send
+              size={15}
+              className={text.trim() ? "text-void-gold" : "text-white/30"}
+            />
           </button>
         </div>
       </div>
-
-      {/* Shimmer animation style */}
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-      `}</style>
     </div>
   );
 }

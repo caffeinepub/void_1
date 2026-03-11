@@ -1,15 +1,15 @@
 /**
  * Messages — Full-featured DM + Groups list for VOID.
- * Replaces DMList.tsx as the active component on the /dms route.
  *
  * Key features:
+ * - AuthModal: blocking full-screen modal until Cosmic Handle is claimed
  * - Cosmic Handle as big bold gold title, VOID ID as tiny gray subtitle
  * - Unread badges per chat + total badge exported for Navigation
  * - Tap handle/avatar → chat, tap Info icon → profile card
  * - React.memo + useCallback for performance
- * - CosmicHandleModal: blocking full-screen modal until handle is claimed
  */
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AtSign,
@@ -20,13 +20,13 @@ import {
   Plus,
   Search,
   Share2,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ChannelType } from "../backend";
+import AuthModal from "../components/AuthModal";
 import InviteModal from "../components/InviteModal";
 import UserProfileCard from "../components/UserProfileCard";
 import VoidAvatar from "../components/VoidAvatar";
@@ -39,7 +39,6 @@ import {
   useGetCosmicHandle,
   useGetGroupsForVoidId,
   useGetSortedDMs,
-  useSetCosmicHandle,
 } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import {
@@ -51,7 +50,6 @@ import {
 
 // ─── Unread count helpers (exported for Navigation.tsx) ───────────────────────
 
-/** Read unread count for a specific chat from localStorage */
 export function getUnreadCount(chatId: string): number {
   try {
     return Number(localStorage.getItem(`void_unread_${chatId}`) ?? 0);
@@ -60,7 +58,6 @@ export function getUnreadCount(chatId: string): number {
   }
 }
 
-/** Get total unread count from localStorage */
 export function getStoredTotalUnread(): number {
   try {
     return Number(localStorage.getItem("void_total_unread") ?? 0);
@@ -69,13 +66,11 @@ export function getStoredTotalUnread(): number {
   }
 }
 
-/** Increment unread count for a specific chat */
 export function incrementUnread(chatId: string): void {
   try {
     const current = getUnreadCount(chatId);
     const next = current + 1;
     localStorage.setItem(`void_unread_${chatId}`, String(next));
-    // Update total
     const total = getStoredTotalUnread();
     localStorage.setItem("void_total_unread", String(total + 1));
   } catch {
@@ -83,12 +78,10 @@ export function incrementUnread(chatId: string): void {
   }
 }
 
-/** Mark a chat as read (clear its unread count) */
 export function markChatReadLocal(chatId: string): void {
   try {
     const prev = getUnreadCount(chatId);
     localStorage.setItem(`void_unread_${chatId}`, "0");
-    // Decrease total by the amount we're clearing
     const total = getStoredTotalUnread();
     const newTotal = Math.max(0, total - prev);
     localStorage.setItem("void_total_unread", String(newTotal));
@@ -99,9 +92,12 @@ export function markChatReadLocal(chatId: string): void {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Extract the DM partner's voidId from the channel ID.
+ * Channel format: DM-@void_shadow_A:canister_@void_shadow_B:canister
+ * Both IDs start with "@void_shadow_", so we split on "_@void_shadow_" after the first ID.
+ */
 function getDMPartner(channelId: string, myVoidId: string): string {
-  // Channel format: DM-@void_shadow_A:canister_@void_shadow_B:canister
-  // Split on _@ to correctly extract both full voidIds (voidIds contain underscores)
   const body = channelId.startsWith("DM-") ? channelId.slice(3) : channelId;
   const separator = "_@void_shadow_";
   const sepIdx = body.indexOf(separator);
@@ -122,229 +118,112 @@ function isValidVoidId(id: string): boolean {
   return /^@void_shadow_[a-zA-Z0-9]+:canister$/.test(id.trim());
 }
 
-/** Derive a handle suggestion from a voidId */
-function suggestHandle(voidId: string): string {
-  // Extract short ID part: @void_shadow_abc12345:canister → abc12345
-  const match = voidId.match(/@void_shadow_([a-zA-Z0-9]+):canister/);
-  if (match?.[1]) {
-    return `cosmic_${match[1].toLowerCase()}`;
-  }
-  // Fallback: use a random-ish cosmic name
-  return `cosmic_void_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// ─── Search tab types ─────────────────────────────────────────────────────────
-type SearchTab = "voidId" | "handle";
+// ─── Types ────────────────────────────────────────────────────────────────────
 type ListTab = "dms" | "groups";
+type SearchTab = "voidId" | "handle";
 
-// ─── Small avatar for search results ─────────────────────────────────────────
-const UserSearchAvatar = memo(function UserSearchAvatar({
+// ─── DMPartnerName ────────────────────────────────────────────────────────────
+/**
+ * Shows @CosmicHandle as big bold gold title and VOID ID as tiny gray subtitle.
+ * This is the critical fix: always fetch the handle and display it prominently.
+ */
+const DMPartnerName = memo(function DMPartnerName({
   voidId,
 }: { voidId: string }) {
-  let customUrl: string | undefined;
-  try {
-    customUrl = localStorage.getItem(`void_avatar_${voidId}`) ?? undefined;
-  } catch {
-    customUrl = undefined;
-  }
-  return <VoidAvatar voidId={voidId} size="sm" customAvatarUrl={customUrl} />;
-});
+  const cachedHandle = getCachedHandle(voidId);
+  const { data: fetchedHandle } = useGetCosmicHandle(voidId);
 
-// ─── CosmicHandleModal ────────────────────────────────────────────────────────
-interface CosmicHandleModalProps {
-  voidId: string;
-}
-
-const CosmicHandleModal = memo(function CosmicHandleModal({
-  voidId,
-}: CosmicHandleModalProps) {
-  const [handle, setHandle] = useState(() => suggestHandle(voidId));
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { mutateAsync: setCosmicHandle, isPending: claiming } =
-    useSetCosmicHandle();
-
-  // Block escape key — modal is non-dismissable
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") e.preventDefault();
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, []);
+    if (fetchedHandle) registerKnownUser(voidId, fetchedHandle);
+  }, [fetchedHandle, voidId]);
 
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleClaim = useCallback(async () => {
-    const trimmed = handle.trim().toLowerCase();
-    if (!trimmed) {
-      setError("Please enter a cosmic handle.");
-      return;
-    }
-    if (trimmed.length < 3) {
-      setError("Handle must be at least 3 characters.");
-      return;
-    }
-    if (trimmed.length > 32) {
-      setError("Handle must be 32 characters or fewer.");
-      return;
-    }
-    if (!/^[a-z0-9_]+$/.test(trimmed)) {
-      setError("Only lowercase letters, numbers, and underscores are allowed.");
-      return;
-    }
-    setError(null);
-    try {
-      await setCosmicHandle({ voidId, handle: trimmed });
-      // useSetCosmicHandle already invalidates ["currentUserProfile"] on success
-      // so the modal will unmount automatically when userProfile.cosmicHandle is set
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        msg.toLowerCase().includes("taken") ||
-        msg.toLowerCase().includes("exists")
-      ) {
-        setError("This cosmic name is already taken");
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
-    }
-  }, [handle, voidId, setCosmicHandle]);
+  const handle = fetchedHandle ?? cachedHandle ?? null;
+  const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
 
   return (
-    <div
-      data-ocid="cosmic_handle.modal"
-      className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.97)" }}
-      // Non-dismissable: no onClick on backdrop
-    >
-      {/* Ambient star glow behind card */}
+    <div className="min-w-0">
       <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none overflow-hidden"
+        className="font-bold text-base leading-tight truncate"
+        style={{ color: "rgba(255,215,0,0.95)" }}
       >
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-10"
-          style={{
-            background:
-              "radial-gradient(circle, #FFD700 0%, #7B2FBE 40%, transparent 70%)",
-          }}
-        />
+        {handle
+          ? `@${handle.replace(/^@/, "")}`
+          : `void_${shortId.slice(0, 8)}`}
       </div>
-
-      <div className="relative bg-void-deep border border-void-gold/20 rounded-sm p-8 w-full max-w-md mx-4 shadow-[0_0_60px_rgba(255,215,0,0.08)]">
-        {/* Icon */}
-        <div className="flex justify-center mb-5">
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(255,215,0,0.15) 0%, rgba(123,47,190,0.1) 100%)",
-              border: "1px solid rgba(255,215,0,0.25)",
-              boxShadow: "0 0 24px rgba(255,215,0,0.15)",
-            }}
-          >
-            <Sparkles size={26} className="text-void-gold" />
-          </div>
+      {handle && (
+        <div className="text-white/25 text-[10px] font-mono truncate mt-0.5">
+          @void_{shortId}
         </div>
-
-        {/* Title */}
-        <h2
-          className="text-center font-bold text-2xl mb-2 tracking-wide"
-          style={{ color: "#FFD700" }}
-        >
-          Choose your Cosmic Handle
-        </h2>
-
-        {/* Subtitle */}
-        <p className="text-center text-white/45 text-sm mb-7 leading-relaxed">
-          This will be your permanent unique name in VOID
-        </p>
-
-        {/* Input */}
-        <div className="relative mb-3">
-          <span
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold pointer-events-none"
-            style={{ color: "rgba(255,215,0,0.6)", fontSize: "14px" }}
-          >
-            @
-          </span>
-          <input
-            ref={inputRef}
-            id="cosmic-handle-input"
-            type="text"
-            data-ocid="cosmic_handle.input"
-            value={handle}
-            onChange={(e) => {
-              setHandle(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !claiming) handleClaim();
-            }}
-            placeholder="your_cosmic_name"
-            maxLength={32}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            disabled={claiming}
-            className="w-full bg-void-black/60 border text-white placeholder:text-white/20 pl-8 pr-4 py-3.5 text-sm focus:outline-none transition-colors disabled:opacity-60"
-            style={{
-              borderColor: error
-                ? "rgba(239,68,68,0.6)"
-                : "rgba(255,215,0,0.25)",
-              fontSize: "14px",
-            }}
-          />
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <p
-            data-ocid="cosmic_handle.error_state"
-            className="text-red-400 text-xs mb-4 flex items-center gap-1.5 leading-relaxed"
-          >
-            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
-            {error}
-          </p>
-        )}
-        {!error && (
-          <p className="text-white/25 text-xs mb-4 leading-relaxed">
-            Lowercase letters, numbers, underscores only. 3–32 characters.
-          </p>
-        )}
-
-        {/* Claim button */}
-        <button
-          type="button"
-          data-ocid="cosmic_handle.submit_button"
-          onClick={handleClaim}
-          disabled={claiming || !handle.trim()}
-          className="void-btn-primary w-full py-3.5 text-sm tracking-widest uppercase font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          style={{
-            boxShadow: claiming ? "none" : "0 0 16px rgba(255,215,0,0.2)",
-          }}
-        >
-          {claiming ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Claiming…
-            </span>
-          ) : (
-            "Claim Handle"
-          )}
-        </button>
-
-        {/* Non-dismissable notice */}
-        <p className="text-center text-white/20 text-[10px] mt-5 tracking-wide">
-          You must claim a handle before entering the void
-        </p>
-      </div>
+      )}
     </div>
+  );
+});
+
+// ─── DMListItem ───────────────────────────────────────────────────────────────
+interface DMListItemProps {
+  channelId: string;
+  myVoidId: string;
+  unreadCount: number;
+  index: number;
+  onNavigate: (channelId: string) => void;
+  onViewProfile: (voidId: string) => void;
+}
+
+const DMListItem = memo(function DMListItem({
+  channelId,
+  myVoidId,
+  unreadCount,
+  index,
+  onNavigate,
+  onViewProfile,
+}: DMListItemProps) {
+  const partnerVoidId = getDMPartner(channelId, myVoidId);
+  const { avatarUrl: partnerAvatar } = useCustomAvatar(partnerVoidId);
+
+  return (
+    <button
+      type="button"
+      data-ocid={`messages.dm.item.${index}`}
+      className="flex items-center gap-3 w-full px-4 py-3.5 border-b border-white/5 cursor-pointer text-left transition-colors hover:bg-void-gold/5 active:bg-void-gold/10"
+      onClick={() => onNavigate(channelId)}
+      aria-label={`Chat with ${partnerVoidId}`}
+    >
+      {/* Avatar */}
+      <div className="shrink-0 relative">
+        <VoidAvatar
+          voidId={partnerVoidId}
+          size="md"
+          customAvatarUrl={partnerAvatar ?? undefined}
+        />
+        {unreadCount > 0 && (
+          <span
+            className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold rounded-full bg-red-500 text-white"
+            style={{ boxShadow: "0 0 8px rgba(239,68,68,0.6)" }}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </div>
+
+      {/* Name section */}
+      <div className="flex-1 min-w-0">
+        <DMPartnerName voidId={partnerVoidId} />
+      </div>
+
+      {/* Info icon */}
+      <button
+        type="button"
+        data-ocid={`messages.dm.profile.button.${index}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewProfile(partnerVoidId);
+        }}
+        className="shrink-0 text-white/20 hover:text-white/50 transition-colors p-1"
+        aria-label="View profile"
+      >
+        <Info size={15} />
+      </button>
+    </button>
   );
 });
 
@@ -405,203 +284,179 @@ const NewDMModal = memo(function NewDMModal({
   }, [voidId]);
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
-        <div
-          data-ocid="messages.dm.modal"
-          className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-white font-semibold tracking-wider">
-              New Message
-            </h2>
-            <button
-              type="button"
-              data-ocid="messages.dm.close_button"
-              onClick={onClose}
-              aria-label="Close"
-              className="text-white/30 hover:text-white/60 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
+      <div
+        data-ocid="messages.dm.modal"
+        className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold tracking-wider">
+            New Message
+          </h2>
+          <button
+            type="button"
+            data-ocid="messages.dm.close_button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-white/30 hover:text-white/60 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-          {/* My VOID ID */}
-          <div className="mb-5 p-3 bg-void-black/40 border border-void-gold/10">
-            <div className="text-white/30 text-xs mb-1">Your VOID ID</div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-void-gold/70 text-xs font-mono truncate flex-1">
-                {voidId}
-              </div>
-              <button
-                type="button"
-                onClick={copyMyId}
-                aria-label="Copy my VOID ID"
-                className="shrink-0 flex items-center gap-1 text-xs text-void-gold/50 hover:text-void-gold transition-colors"
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? "Copied" : "Copy"}
-              </button>
+        {/* My VOID ID */}
+        <div className="mb-5 p-3 bg-void-black/40 border border-void-gold/10">
+          <div className="text-white/30 text-xs mb-1">Your VOID ID</div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 text-white/60 text-xs font-mono truncate">
+              {voidId}
             </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex mb-5 border border-void-gold/15 rounded-sm overflow-hidden">
             <button
               type="button"
-              data-ocid="messages.dm.voidid.tab"
-              onClick={() => {
-                setTab("voidId");
-                setValidationError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-                tab === "voidId"
-                  ? "bg-void-gold/10 text-void-gold border-r border-void-gold/15"
-                  : "text-white/30 hover:text-white/60 border-r border-void-gold/10"
-              }`}
+              onClick={copyMyId}
+              className="shrink-0 text-white/30 hover:text-void-gold transition-colors p-1"
+              title="Copy VOID ID"
             >
-              <AtSign size={12} />
-              VOID ID
-            </button>
-            <button
-              type="button"
-              data-ocid="messages.dm.handle.tab"
-              onClick={() => {
-                setTab("handle");
-                setValidationError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs tracking-wider uppercase transition-colors ${
-                tab === "handle"
-                  ? "bg-void-gold/10 text-void-gold"
-                  : "text-white/30 hover:text-white/60"
-              }`}
-            >
-              <Search size={12} />
-              By Handle
+              {copied ? <Check size={13} /> : <Copy size={13} />}
             </button>
           </div>
+        </div>
 
-          {tab === "voidId" && (
-            <div>
-              <label
-                htmlFor="dm-voidid-input"
-                className="block text-white/40 text-xs mb-2"
-              >
-                Enter VOID ID or short code
-              </label>
+        {/* Search tabs */}
+        <div className="flex mb-4 border-b border-white/10">
+          <button
+            type="button"
+            data-ocid="messages.dm.voidid.tab"
+            onClick={() => setTab("voidId")}
+            className={`flex-1 py-2 text-xs tracking-wider uppercase transition-colors ${
+              tab === "voidId"
+                ? "text-void-gold border-b-2 border-void-gold"
+                : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            VOID ID
+          </button>
+          <button
+            type="button"
+            data-ocid="messages.dm.handle.tab"
+            onClick={() => setTab("handle")}
+            className={`flex-1 py-2 text-xs tracking-wider uppercase transition-colors ${
+              tab === "handle"
+                ? "text-void-gold border-b-2 border-void-gold"
+                : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            Cosmic Handle
+          </button>
+        </div>
+
+        {/* VOID ID tab */}
+        {tab === "voidId" && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
               <input
-                id="dm-voidid-input"
                 type="text"
-                data-ocid="messages.dm.input"
+                data-ocid="messages.dm.voidid.input"
                 value={voidIdInput}
                 onChange={(e) => {
                   setVoidIdInput(e.target.value);
                   setValidationError(null);
+                  setPreviewVoidId(null);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleVoidIdSubmit();
-                }}
-                placeholder="@void_shadow_xxxxxxxx:canister"
-                className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm font-mono focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
+                placeholder="@void_shadow_...or short code"
+                className="flex-1 bg-void-black/50 border border-void-gold/15 text-white placeholder:text-white/20 px-3 py-2 text-xs focus:outline-none focus:border-void-gold/40 transition-colors"
                 style={{ fontSize: "14px" }}
+                onKeyDown={(e) => e.key === "Enter" && handleVoidIdSubmit()}
               />
-              {validationError && (
-                <p
-                  data-ocid="messages.dm.error_state"
-                  className="text-red-400/80 text-xs mb-3 leading-relaxed"
-                >
-                  {validationError}
-                </p>
-              )}
               <button
                 type="button"
-                data-ocid="messages.dm.submit_button"
                 onClick={handleVoidIdSubmit}
-                disabled={!voidIdInput.trim() || creating}
-                className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50 mt-1"
+                className="shrink-0 px-4 py-2 border border-void-gold/25 text-void-gold text-xs tracking-wider hover:bg-void-gold/10 transition-colors"
               >
-                {creating ? "Opening channel..." : "View Profile & Message"}
+                <Search size={14} />
               </button>
             </div>
-          )}
 
-          {tab === "handle" && (
-            <div>
-              <label
-                htmlFor="dm-handle-input"
-                className="block text-white/40 text-xs mb-2"
-              >
-                Search cosmic handle
-              </label>
+            {validationError && (
+              <p className="text-red-400/80 text-xs">{validationError}</p>
+            )}
+
+            {previewVoidId && (
+              <div className="border border-void-gold/15 p-3 flex items-center gap-3">
+                <VoidAvatar voidId={previewVoidId} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <DMPartnerName voidId={previewVoidId} />
+                </div>
+                <button
+                  type="button"
+                  data-ocid="messages.dm.start_button"
+                  onClick={() => onCreate(previewVoidId)}
+                  disabled={creating}
+                  className="shrink-0 px-3 py-1.5 bg-void-gold/15 border border-void-gold/30 text-void-gold text-xs hover:bg-void-gold/25 transition-colors disabled:opacity-40"
+                >
+                  {creating ? "Opening..." : "Message"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Handle search tab */}
+        {tab === "handle" && (
+          <div className="space-y-3">
+            <div className="relative">
+              <AtSign
+                size={13}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25"
+              />
               <input
-                id="dm-handle-input"
                 type="text"
-                data-ocid="messages.dm.search_input"
+                data-ocid="messages.dm.handle.input"
                 value={handleInput}
                 onChange={(e) => setHandleInput(e.target.value)}
-                placeholder="Search @CosmicHandle..."
-                className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 mb-2 transition-colors"
+                placeholder="NebulaSage"
+                className="w-full bg-void-black/50 border border-void-gold/15 text-white placeholder:text-white/20 pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-void-gold/40 transition-colors"
                 style={{ fontSize: "14px" }}
               />
-              {handleInput.trim() && searchResults.length === 0 && (
-                <p className="text-white/30 text-xs text-center py-4">
-                  No travelers found. They must appear in a shared room first.
-                </p>
-              )}
-              {searchResults.length > 0 && (
-                <div className="border border-void-gold/10 max-h-48 overflow-y-auto">
-                  {searchResults.map((user, idx) => (
-                    <button
-                      key={user.voidId}
-                      type="button"
-                      data-ocid={`messages.dm.item.${idx + 1}`}
-                      onClick={() => setPreviewVoidId(user.voidId)}
-                      disabled={creating}
-                      className="w-full flex items-center gap-3 px-3 py-3 hover:bg-void-gold/5 border-b border-white/5 last:border-0 text-left transition-colors disabled:opacity-50"
-                    >
-                      <UserSearchAvatar voidId={user.voidId} />
-                      <div className="flex-1 min-w-0">
-                        {user.cosmicHandle ? (
-                          <>
-                            <div className="text-void-gold font-bold text-sm truncate">
-                              @{user.cosmicHandle.replace(/^@/, "")}
-                            </div>
-                            <div className="text-white/30 text-xs font-mono truncate">
-                              {user.voidId}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-white/60 text-xs font-mono truncate">
-                            {user.voidId}
-                          </div>
-                        )}
-                      </div>
-                      <Info size={12} className="text-void-gold/30 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!handleInput.trim() && (
-                <p className="text-white/25 text-xs text-center py-4 leading-relaxed">
-                  Travelers you've shared rooms with will appear here.
-                </p>
-              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {previewVoidId && (
-        <UserProfileCard
-          voidId={previewVoidId}
-          onClose={() => setPreviewVoidId(null)}
-          onStartDM={() => {
-            setPreviewVoidId(null);
-            onCreate(previewVoidId);
-          }}
-        />
-      )}
-    </>
+            {searchResults.length > 0 && (
+              <div className="border border-void-gold/10 divide-y divide-white/5 max-h-48 overflow-y-auto">
+                {searchResults.map((user) => (
+                  <button
+                    key={user.voidId}
+                    type="button"
+                    className="flex items-center gap-3 w-full p-3 text-left hover:bg-void-gold/5 cursor-pointer transition-colors"
+                    onClick={() => onCreate(user.voidId)}
+                  >
+                    <VoidAvatar voidId={user.voidId} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-bold text-sm truncate"
+                        style={{ color: "rgba(255,215,0,0.9)" }}
+                      >
+                        @{user.cosmicHandle}
+                      </div>
+                      <div className="text-white/30 text-[10px] font-mono truncate">
+                        {user.voidId
+                          .replace("@void_shadow_", "")
+                          .replace(":canister", "")}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {handleInput.trim() && searchResults.length === 0 && (
+              <p className="text-white/30 text-xs text-center py-4">
+                No known users found. Try searching by VOID ID instead.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 });
 
@@ -615,39 +470,57 @@ const NewGroupModal = memo(function NewGroupModal({
   voidId,
   onClose,
 }: NewGroupModalProps) {
+  const [groupName, setGroupName] = useState("");
+  const [memberInput, setMemberInput] = useState("");
+  const [members, setMembers] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { mutateAsync: createGroup, isPending: creating } = useCreateGroup();
   const { mutateAsync: addMember } = useAddGroupMember();
   const navigate = useNavigate();
-  const [groupName, setGroupName] = useState("");
-  const [membersInput, setMembersInput] = useState("");
-  const [error, setError] = useState<string | null>(null);
+
+  const addMemberToList = useCallback(() => {
+    let trimmed = memberInput.trim();
+    if (/^[a-zA-Z0-9]{6,16}$/.test(trimmed)) {
+      trimmed = `@void_shadow_${trimmed}:canister`;
+    }
+    if (!isValidVoidId(trimmed)) {
+      setError("Invalid VOID ID.");
+      return;
+    }
+    if (trimmed === voidId) {
+      setError("You are automatically included as the creator.");
+      return;
+    }
+    if (members.includes(trimmed)) {
+      setError("Already added.");
+      return;
+    }
+    setMembers((prev) => [...prev, trimmed]);
+    setMemberInput("");
+    setError(null);
+  }, [memberInput, members, voidId]);
 
   const handleCreate = useCallback(async () => {
-    const name = groupName.trim();
-    if (!name) {
-      setError("Group name is required.");
+    if (!groupName.trim()) {
+      setError("Please enter a group name.");
       return;
     }
     setError(null);
     try {
-      const groupId = await createGroup({ name, creatorVoidId: voidId });
-      if (membersInput.trim()) {
-        const memberIds = membersInput
-          .split(",")
-          .map((m) => m.trim())
-          .filter(Boolean);
-        await Promise.all(
-          memberIds.map((memberId) => {
-            let id = memberId;
-            if (/^[a-zA-Z0-9]{6,16}$/.test(id))
-              id = `@void_shadow_${id}:canister`;
-            return addMember({ groupId, memberVoidId: id }).catch(() => {
-              console.warn(`Could not add member ${id}`);
-            });
-          }),
-        );
+      const groupId = await createGroup({
+        creatorVoidId: voidId,
+        name: groupName.trim(),
+      });
+      if (!groupId) {
+        setError("Failed to create group. Try again.");
+        return;
       }
-      toast.success(`Group "${name}" created`);
+      // Add members
+      await Promise.all(
+        members.map((m) =>
+          addMember({ groupId, memberVoidId: m }).catch(() => {}),
+        ),
+      );
       onClose();
       navigate({
         to: "/groups/$groupId",
@@ -655,17 +528,9 @@ const NewGroupModal = memo(function NewGroupModal({
       });
     } catch (err) {
       console.error("createGroup error", err);
-      toast.error("Could not create group. Try again.");
+      setError("Could not create group. Try again.");
     }
-  }, [
-    groupName,
-    membersInput,
-    voidId,
-    createGroup,
-    addMember,
-    navigate,
-    onClose,
-  ]);
+  }, [groupName, voidId, members, createGroup, addMember, onClose, navigate]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-void-black/90 backdrop-blur-sm">
@@ -674,180 +539,111 @@ const NewGroupModal = memo(function NewGroupModal({
         className="bg-void-deep border border-void-gold/20 p-6 w-full max-w-sm mx-4 rounded-sm overflow-y-auto max-h-[85vh]"
       >
         <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Users size={16} className="text-void-gold/60" />
-            <h2 className="text-white font-semibold tracking-wider">
-              New Group
-            </h2>
-          </div>
+          <h2 className="text-white font-semibold tracking-wider">New Group</h2>
           <button
             type="button"
             data-ocid="messages.group.close_button"
             onClick={onClose}
-            aria-label="Close"
             className="text-white/30 hover:text-white/60 transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="mb-4">
-          <label
-            htmlFor="group-name-input"
-            className="block text-white/40 text-xs mb-2 tracking-wider uppercase"
-          >
-            Group Name <span className="text-void-gold/60">*</span>
-          </label>
-          <input
-            id="group-name-input"
-            type="text"
-            data-ocid="messages.group.input"
-            value={groupName}
-            onChange={(e) => {
-              setGroupName(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreate();
-            }}
-            placeholder="e.g. Wisdom Seekers"
-            maxLength={60}
-            className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
-            style={{ fontSize: "14px" }}
-          />
-          {error && (
-            <p
-              data-ocid="messages.group.error_state"
-              className="text-red-400/80 text-xs mt-1.5"
+        <div className="space-y-4">
+          {/* Group name */}
+          <div>
+            <label
+              htmlFor="group-name-input"
+              className="text-white/40 text-xs mb-1.5 block"
             >
-              {error}
-            </p>
+              Group Name
+            </label>
+            <input
+              type="text"
+              id="group-name-input"
+              data-ocid="messages.group.name.input"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="The Wisdom Circle"
+              maxLength={40}
+              className="w-full bg-void-black/50 border border-void-gold/15 text-white placeholder:text-white/20 px-3 py-2 text-sm focus:outline-none focus:border-void-gold/40 transition-colors"
+              style={{ fontSize: "16px" }}
+            />
+          </div>
+
+          {/* Add members */}
+          <div>
+            <label
+              htmlFor="group-member-input"
+              className="text-white/40 text-xs mb-1.5 block"
+            >
+              Add Members
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                id="group-member-input"
+                data-ocid="messages.group.member.input"
+                value={memberInput}
+                onChange={(e) => {
+                  setMemberInput(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && addMemberToList()}
+                placeholder="VOID ID or short code"
+                className="flex-1 bg-void-black/50 border border-void-gold/15 text-white placeholder:text-white/20 px-3 py-2 text-xs focus:outline-none focus:border-void-gold/40 transition-colors"
+                style={{ fontSize: "14px" }}
+              />
+              <button
+                type="button"
+                onClick={addMemberToList}
+                className="px-3 border border-void-gold/25 text-void-gold hover:bg-void-gold/10 transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Member list */}
+          {members.length > 0 && (
+            <div className="space-y-1.5">
+              {members.map((m) => (
+                <div
+                  key={m}
+                  className="flex items-center gap-2 px-3 py-2 bg-void-black/30 border border-void-gold/10"
+                >
+                  <VoidAvatar voidId={m} size="sm" />
+                  <span className="flex-1 text-white/60 text-xs font-mono truncate">
+                    {m.replace("@void_shadow_", "").replace(":canister", "")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMembers((prev) => prev.filter((x) => x !== m))
+                    }
+                    className="text-white/20 hover:text-red-400 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
-        </div>
 
-        <div className="mb-5">
-          <label
-            htmlFor="group-members-input"
-            className="block text-white/40 text-xs mb-2 tracking-wider uppercase"
+          {error && <p className="text-red-400/80 text-xs">{error}</p>}
+
+          <button
+            type="button"
+            data-ocid="messages.group.submit_button"
+            onClick={handleCreate}
+            disabled={creating || !groupName.trim()}
+            className="w-full py-3 border border-void-gold/25 text-void-gold text-xs tracking-widest uppercase hover:bg-void-gold/10 transition-colors disabled:opacity-40"
           >
-            Add Members{" "}
-            <span className="text-white/20 normal-case">(optional)</span>
-          </label>
-          <textarea
-            id="group-members-input"
-            data-ocid="messages.group.textarea"
-            value={membersInput}
-            onChange={(e) => setMembersInput(e.target.value)}
-            placeholder="VOID IDs separated by commas&#10;e.g. abc12345, def67890"
-            rows={3}
-            className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-xs font-mono focus:outline-none focus:border-void-gold/50 resize-none transition-colors"
-          />
+            {creating ? "Creating..." : "Create Group"}
+          </button>
         </div>
-
-        <button
-          type="button"
-          data-ocid="messages.group.submit_button"
-          onClick={handleCreate}
-          disabled={!groupName.trim() || creating}
-          className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase disabled:opacity-50"
-        >
-          {creating ? "Creating..." : "Create Group"}
-        </button>
       </div>
-    </div>
-  );
-});
-
-// ─── DMPartnerName — Cosmic Handle as title, VOID ID as subtitle ──────────────
-const DMPartnerName = memo(function DMPartnerName({
-  voidId,
-}: { voidId: string }) {
-  const cachedHandle = getCachedHandle(voidId);
-  const { data: fetchedHandle } = useGetCosmicHandle(voidId);
-
-  useEffect(() => {
-    if (fetchedHandle) registerKnownUser(voidId, fetchedHandle);
-  }, [fetchedHandle, voidId]);
-
-  const handle = fetchedHandle ?? cachedHandle;
-  const shortId = voidId.replace("@void_shadow_", "").replace(":canister", "");
-
-  return (
-    <div>
-      {/* Cosmic Handle — big bold gold title */}
-      <div className="text-void-gold font-bold text-base leading-tight truncate">
-        {handle ? `@${handle.replace(/^@/, "")}` : `void_${shortId}`}
-      </div>
-      {/* VOID ID — tiny gray mono subtitle */}
-      {handle && (
-        <div className="text-white/25 text-[10px] font-mono truncate mt-0.5 tracking-tight">
-          @void_{shortId}
-        </div>
-      )}
-    </div>
-  );
-});
-
-// ─── DMListItem — single DM row ───────────────────────────────────────────────
-interface DMListItemProps {
-  channelId: string;
-  partner: string;
-  isMe: boolean;
-  myCustomAvatar?: string;
-  unreadCount: number;
-  index: number;
-  onNavigate: (channelId: string) => void;
-  onViewProfile: (voidId: string) => void;
-}
-
-const DMListItem = memo(function DMListItem({
-  channelId,
-  partner,
-  isMe,
-  myCustomAvatar,
-  unreadCount,
-  index,
-  onNavigate,
-  onViewProfile,
-}: DMListItemProps) {
-  return (
-    <div
-      data-ocid={`messages.chat.item.${index}`}
-      className="flex items-center border-b border-white/5 hover:bg-void-gold/5 transition-colors"
-    >
-      <button
-        type="button"
-        onClick={() => onNavigate(channelId)}
-        className="flex-1 flex items-center gap-3 px-4 py-4 text-left min-w-0"
-      >
-        <div className="shrink-0">
-          <VoidAvatar
-            voidId={partner}
-            size="md"
-            customAvatarUrl={isMe ? myCustomAvatar : undefined}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <DMPartnerName voidId={partner} />
-        </div>
-        {unreadCount > 0 && (
-          <span className="shrink-0 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold rounded-full bg-red-500 text-white leading-none ml-1">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </button>
-      {!isMe && (
-        <button
-          type="button"
-          data-ocid={`messages.chat.info.${index}`}
-          onClick={() => onViewProfile(partner)}
-          aria-label="View profile"
-          className="shrink-0 mr-3 p-2.5 text-white/20 hover:text-void-gold/60 transition-colors"
-          title="View profile"
-        >
-          <Info size={14} />
-        </button>
-      )}
     </div>
   );
 });
@@ -856,6 +652,7 @@ const DMListItem = memo(function DMListItem({
 
 export default function Messages() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: dms = [], isLoading } = useGetSortedDMs();
   const { mutateAsync: createDM, isPending: creating } = useCreateDM();
   const { data: userProfile } = useGetCallerUserProfile();
@@ -868,7 +665,6 @@ export default function Messages() {
   const [profileCardVoidId, setProfileCardVoidId] = useState<string | null>(
     null,
   );
-  // Local unread counts: chatId → count
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
   const { data: groups = [], isLoading: groupsLoading } = useGetGroupsForVoidId(
@@ -941,17 +737,26 @@ export default function Messages() {
     [voidId, createDM, navigate],
   );
 
+  const handleAuthSuccess = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
+  }, [queryClient]);
+
   const totalUnread = Object.values(unreadMap).reduce((sum, n) => sum + n, 0);
 
   return (
     <div className="void-bg flex flex-col h-full">
-      {/* Blocking Cosmic Handle modal — must be set before using the app */}
-      {needsHandle && voidId && <CosmicHandleModal voidId={voidId} />}
+      {/* Blocking AuthModal — must claim handle before using app */}
+      {needsHandle && voidId && (
+        <AuthModal voidId={voidId} onSuccess={handleAuthSuccess} />
+      )}
 
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-void-gold/15 flex items-center justify-between shrink-0 bg-void-black/60">
         <div>
-          <h1 className="text-void-gold font-bold tracking-wider text-lg flex items-center gap-2">
+          <h1
+            className="font-bold tracking-wider text-lg flex items-center gap-2"
+            style={{ color: "rgba(255,215,0,0.95)" }}
+          >
             Messages
             <span
               className="w-2 h-2 rounded-full bg-green-500 inline-block"
@@ -997,7 +802,7 @@ export default function Messages() {
         </div>
       </div>
 
-      {/* Search bar — opens New DM modal */}
+      {/* Search bar */}
       <div className="px-4 py-2 border-b border-void-gold/10 bg-void-black/40">
         <div className="relative">
           <Search
@@ -1022,7 +827,7 @@ export default function Messages() {
           type="button"
           data-ocid="messages.dms.tab"
           onClick={() => setActiveTab("dms")}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-wider uppercase transition-colors relative ${
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-xs tracking-wider uppercase transition-colors ${
             activeTab === "dms"
               ? "text-void-gold border-b-2 border-void-gold bg-void-gold/5"
               : "text-white/30 hover:text-white/60"
@@ -1075,63 +880,42 @@ export default function Messages() {
           {isLoading && (
             <div
               data-ocid="messages.loading_state"
-              className="flex justify-center py-8"
+              className="flex justify-center py-16"
             >
               <div className="text-white/30 text-sm animate-pulse">
                 Loading channels...
               </div>
             </div>
           )}
+
           {!isLoading && dmChannels.length === 0 && (
             <div
-              data-ocid="messages.empty_state"
+              data-ocid="messages.dm.empty_state"
               className="flex flex-col items-center justify-center py-16 text-center px-6"
             >
-              <MessageSquare size={40} className="text-white/10 mb-4" />
-              <p className="text-white/30 text-sm mb-2">
-                No private channels yet.
-              </p>
+              <div className="text-4xl mb-4">💬</div>
+              <p className="text-white/40 text-sm mb-1">No messages yet</p>
               <p className="text-white/20 text-xs">
-                Start a conversation with another VOID ID.
+                Tap + to start a private conversation
               </p>
-              <button
-                type="button"
-                data-ocid="messages.start.primary_button"
-                onClick={() => setShowNewDM(true)}
-                className="mt-6 void-btn-primary px-6 py-2.5 text-xs tracking-widest uppercase"
-              >
-                <Plus size={13} className="inline mr-1.5" />
-                New Message
-              </button>
             </div>
           )}
-          {dmChannels.map((dm, idx) => {
-            const channelId = getChannelId(dm);
-            const partner = voidId
-              ? getDMPartner(channelId, voidId)
-              : channelId;
-            const isMe = partner === voidId;
-            const unread = unreadMap[channelId] ?? 0;
-            return (
-              <DMListItem
-                key={channelId}
-                channelId={channelId}
-                partner={partner}
-                isMe={isMe}
-                myCustomAvatar={myCustomAvatar ?? undefined}
-                unreadCount={unread}
-                index={idx + 1}
-                onNavigate={handleNavigateToChat}
-                onViewProfile={handleViewProfile}
-              />
-            );
-          })}
-          {profileCardVoidId && (
-            <UserProfileCard
-              voidId={profileCardVoidId}
-              onClose={() => setProfileCardVoidId(null)}
-            />
-          )}
+
+          {!isLoading &&
+            dmChannels.map((dm, idx) => {
+              const channelId = getChannelId(dm);
+              return (
+                <DMListItem
+                  key={channelId}
+                  channelId={channelId}
+                  myVoidId={voidId ?? ""}
+                  unreadCount={unreadMap[channelId] ?? 0}
+                  index={idx + 1}
+                  onNavigate={handleNavigateToChat}
+                  onViewProfile={handleViewProfile}
+                />
+              );
+            })}
         </div>
       )}
 
@@ -1139,63 +923,76 @@ export default function Messages() {
       {activeTab === "groups" && (
         <div className="flex-1 overflow-y-auto">
           {groupsLoading && (
-            <div
-              data-ocid="messages.groups.loading_state"
-              className="flex justify-center py-8"
-            >
+            <div className="flex justify-center py-16">
               <div className="text-white/30 text-sm animate-pulse">
                 Loading groups...
               </div>
             </div>
           )}
+
           {!groupsLoading && groups.length === 0 && (
             <div
               data-ocid="messages.groups.empty_state"
               className="flex flex-col items-center justify-center py-16 text-center px-6"
             >
-              <Users size={40} className="text-white/10 mb-4" />
-              <p className="text-white/30 text-sm mb-2">No groups yet.</p>
-              <p className="text-white/20 text-xs">
-                Create one to start a group conversation.
-              </p>
-              <button
-                type="button"
-                data-ocid="messages.groups.start.primary_button"
-                onClick={() => setShowNewGroup(true)}
-                className="mt-6 void-btn-primary px-6 py-2.5 text-xs tracking-widest uppercase"
-              >
-                <Plus size={13} className="inline mr-1.5" />
-                New Group
-              </button>
+              <div className="text-4xl mb-4">👥</div>
+              <p className="text-white/40 text-sm mb-1">No groups yet</p>
+              <p className="text-white/20 text-xs">Tap + to create a group</p>
             </div>
           )}
-          {groups.map((group, idx) => (
-            <button
-              key={group.id}
-              type="button"
-              data-ocid={`messages.group.item.${idx + 1}`}
-              onClick={() =>
-                navigate({
-                  to: "/groups/$groupId",
-                  params: { groupId: encodeURIComponent(group.id) },
-                })
-              }
-              className="w-full flex items-center gap-4 px-6 py-4 border-b border-white/5 hover:bg-void-gold/5 transition-colors text-left"
-            >
-              <div className="w-10 h-10 rounded-full bg-void-deep border border-void-gold/20 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(255,215,0,0.15)]">
-                <Users size={16} className="text-void-gold/60" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white font-semibold text-sm truncate">
-                  {group.name}
+
+          {!groupsLoading &&
+            groups.map((group, idx) => (
+              <button
+                type="button"
+                key={group.id}
+                data-ocid={`messages.group.item.${idx + 1}`}
+                className="flex items-center gap-3 w-full px-4 py-3.5 border-b border-white/5 text-left cursor-pointer hover:bg-void-gold/5 transition-colors"
+                onClick={() =>
+                  navigate({
+                    to: "/groups/$groupId",
+                    params: { groupId: encodeURIComponent(group.id) },
+                  })
+                }
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    background: "rgba(123,47,190,0.2)",
+                    border: "1px solid rgba(123,47,190,0.35)",
+                  }}
+                >
+                  <Users size={16} style={{ color: "rgba(180,120,255,0.8)" }} />
                 </div>
-                <div className="text-white/40 text-xs mt-0.5">
-                  {group.members.length}{" "}
-                  {group.members.length === 1 ? "member" : "members"}
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="font-bold text-base truncate"
+                    style={{ color: "rgba(255,215,0,0.9)" }}
+                  >
+                    {group.name}
+                  </div>
+                  <div className="text-white/25 text-[10px] font-mono truncate mt-0.5">
+                    {group.members.length} members
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+        </div>
+      )}
+
+      {/* Profile card overlay */}
+      {profileCardVoidId && (
+        <UserProfileCard
+          voidId={profileCardVoidId}
+          onClose={() => setProfileCardVoidId(null)}
+          onStartDM={() => setProfileCardVoidId(null)}
+        />
+      )}
+
+      {/* My profile header avatar (optional touch) */}
+      {voidId && myCustomAvatar && (
+        <div style={{ display: "none" }}>
+          <VoidAvatar voidId={voidId} customAvatarUrl={myCustomAvatar} />
         </div>
       )}
     </div>
