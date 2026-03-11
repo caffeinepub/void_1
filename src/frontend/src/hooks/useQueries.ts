@@ -69,8 +69,13 @@ export function useSetCosmicHandle() {
 
       await actor.setCosmicHandle(voidId, handle);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
+      // Also invalidate the cosmicHandle cache so the UI refreshes everywhere
+      queryClient.invalidateQueries({
+        queryKey: ["cosmicHandle", variables.voidId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["cosmicHandle"] });
     },
   });
 }
@@ -175,6 +180,18 @@ export function useCreateDM() {
       voidId2,
     }: { voidId1: string; voidId2: string }) => {
       if (!actor) throw new Error("Actor not available");
+
+      // Ensure caller's voidId is registered in the backend before creating a DM.
+      // Without this, the backend rejects the call with "You must own at least one of the VOID IDs".
+      try {
+        const profile = await actor.getCallerUserProfile().catch(() => null);
+        if (!profile) {
+          await actor.saveCallerUserProfile({ voidId: voidId1 });
+        }
+      } catch {
+        // If registration fails, still attempt createDM (might already be registered)
+      }
+
       return actor.createDM(voidId1, voidId2);
     },
     onSuccess: () => {
