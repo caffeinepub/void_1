@@ -10,6 +10,7 @@ import {
   Save,
   Shield,
   Sparkles,
+  Trash2,
   X,
   Zap,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import {
   subscribeToVAPID,
 } from "../lib/NotificationService";
 import { getKeyFingerprint } from "../lib/crypto";
+import { resetAllChatData } from "../lib/resetChatData";
 import { registerKnownUser } from "../lib/userRegistry";
 
 // ─── NFT category labels (local copy for profile display) ────────────────────
@@ -95,6 +97,8 @@ export default function ProfileSettings() {
   const [founderCode, setFounderCode] = useState("");
   const [founderModeActive, setFounderModeActive] = useState(false);
   const [founderCodeError, setFounderCodeError] = useState("");
+  const [clearingData, setClearingData] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Load bio from localStorage on mount
   useEffect(() => {
@@ -136,7 +140,6 @@ export default function ProfileSettings() {
 
   const handleActivateFounderMode = () => {
     const FOUNDER_CODE = "VOID_SAGE_2025_OMEGA";
-    // Also support legacy code for backward compat
     const LEGACY_CODE = "VOID_SAGE_2024_OMEGA";
     if (
       founderCode.trim() === FOUNDER_CODE ||
@@ -161,6 +164,22 @@ export default function ProfileSettings() {
     }
     setFounderModeActive(false);
     toast.success("Founder Mode deactivated");
+  };
+
+  const handleClearChatData = async () => {
+    if (!confirmClear) {
+      // First click — ask for confirmation
+      setConfirmClear(true);
+      return;
+    }
+    // Second click — execute
+    setClearingData(true);
+    setConfirmClear(false);
+    try {
+      await resetAllChatData(voidId);
+    } finally {
+      setClearingData(false);
+    }
   };
 
   // Keep cosmicHandle in sync with loaded profile
@@ -242,7 +261,6 @@ export default function ProfileSettings() {
 
   const handleToggleNotifications = async (checked: boolean) => {
     if (checked) {
-      // Request permission via NotificationService
       const permission = await requestNotificationPermission();
       if (permission !== "granted") {
         toast.error(
@@ -250,8 +268,6 @@ export default function ProfileSettings() {
         );
         return;
       }
-
-      // Subscribe to VAPID push
       const subscription = await subscribeToVAPID();
       if (subscription) {
         toast.success("Push notifications enabled", {
@@ -269,7 +285,6 @@ export default function ProfileSettings() {
 
     setNotificationsEnabled(checked);
     setNotificationEnabled(checked);
-    // Also keep legacy localStorage key for backward compatibility
     try {
       localStorage.setItem(
         `void_notifications_${voidId}`,
@@ -460,7 +475,7 @@ export default function ProfileSettings() {
           <PolarityGarden wisdomScore={score} />
         </div>
 
-        {/* ─── Saved Wisdom / Bookmarks ─────────────────────────────────── */}
+        {/* ─── Saved Wisdom / Bookmarks ──────────────────────────────────── */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <span className="text-void-gold/60 text-xs uppercase tracking-widest flex items-center gap-2">
@@ -523,7 +538,7 @@ export default function ProfileSettings() {
           )}
         </div>
 
-        {/* ─── Notifications Toggle ─────────────────────────────────────── */}
+        {/* ─── Notifications Toggle ──────────────────────────────────────── */}
         <div
           className="mb-6 flex items-center justify-between p-4 border border-void-gold/10"
           style={{ background: "rgba(255,215,0,0.03)" }}
@@ -670,7 +685,7 @@ export default function ProfileSettings() {
           </p>
         </div>
 
-        {/* ─── Founder Mode — hidden / subtle ──────────────────────────── */}
+        {/* ─── Founder Mode — hidden / subtle ────────────────────────────── */}
         <div className="mt-12 pt-6 border-t border-white/5">
           <button
             type="button"
@@ -700,16 +715,63 @@ export default function ProfileSettings() {
                       👑 Founder Mode Active
                     </span>
                   </div>
-                  <p className="text-white/40 text-xs mb-3">
+                  <p className="text-white/40 text-xs mb-4">
                     Creator Portal is unlocked in the navigation menu.
                   </p>
+
+                  {/* ─── Clear Chat Data button (founder only) ─────────────── */}
+                  <div
+                    className="mb-4 p-3"
+                    style={{
+                      background: "rgba(255,50,50,0.05)",
+                      border: "1px solid rgba(255,80,80,0.15)",
+                    }}
+                  >
+                    <div className="text-red-400/50 text-xs uppercase tracking-widest mb-2">
+                      Danger Zone
+                    </div>
+                    <p className="text-white/30 text-xs mb-3">
+                      Wipes all local chat data, E2EE keys, and IndexedDB
+                      stores. This cannot be undone.
+                    </p>
+                    <button
+                      type="button"
+                      data-ocid="profile.founder.delete_button"
+                      onClick={handleClearChatData}
+                      disabled={clearingData}
+                      className="flex items-center gap-2 text-xs px-3 py-2 border transition-colors disabled:opacity-40"
+                      style={{
+                        borderColor: confirmClear
+                          ? "rgba(255,80,80,0.5)"
+                          : "rgba(255,80,80,0.2)",
+                        color: confirmClear
+                          ? "rgba(255,100,100,0.9)"
+                          : "rgba(255,100,100,0.5)",
+                        background: confirmClear
+                          ? "rgba(255,50,50,0.1)"
+                          : "transparent",
+                      }}
+                    >
+                      {clearingData ? (
+                        <span className="w-3 h-3 border border-red-400/40 border-t-red-400 rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 size={12} />
+                      )}
+                      {clearingData
+                        ? "Clearing..."
+                        : confirmClear
+                          ? "Tap again to confirm"
+                          : "Clear All Chat Data"}
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     data-ocid="profile.secondary_button"
                     onClick={handleDeactivateFounderMode}
                     className="text-red-400/50 text-xs hover:text-red-400 transition-colors"
                   >
-                    Deactivate
+                    Deactivate Founder Mode
                   </button>
                 </div>
               ) : (

@@ -58,6 +58,15 @@ export function useSetCosmicHandle() {
       handle,
     }: { voidId: string; handle: string }) => {
       if (!actor) throw new Error("Actor not available");
+
+      // New users have no profile yet — setCosmicHandle will throw
+      // "VOID ID not registered" unless saveCallerUserProfile is called first
+      // to register the voidId in the canister's voidIdToPrincipal map.
+      const existing = await actor.getCallerUserProfile().catch(() => null);
+      if (!existing) {
+        await actor.saveCallerUserProfile({ voidId });
+      }
+
       await actor.setCosmicHandle(voidId, handle);
     },
     onSuccess: () => {

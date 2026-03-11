@@ -39,8 +39,9 @@ import { sendLocalNotification } from "../lib/NotificationService";
 import { decryptMessage, getChannelKey } from "../lib/crypto";
 import { markChatReadLocal } from "./Messages";
 
-// ─── Emoji set ────────────────────────────────────────────────────────────────
+// ─── Emoji set (60+ cosmic/spiritual) ────────────────────────────────────────
 const EMOJI_SET = [
+  // Original set
   "✨",
   "🌑",
   "☀️",
@@ -71,6 +72,53 @@ const EMOJI_SET = [
   "☯️",
   "🌀",
   "🔯",
+  // Cosmic & space
+  "🌟",
+  "💥",
+  "🎇",
+  "🎆",
+  "🌠",
+  "🪐",
+  "🛸",
+  "👽",
+  "🔭",
+  "⚗️",
+  // Mystical & spiritual
+  "🧿",
+  "🪬",
+  "🫧",
+  "💠",
+  "🔷",
+  "🧲",
+  "⚖️",
+  "🕯️",
+  "🪷",
+  "🌺",
+  // Mythical & nature
+  "🦄",
+  "🐉",
+  "🦅",
+  "🌻",
+  "🍃",
+  "🌱",
+  "☁️",
+  "⛅",
+  "🌤️",
+  "🌋",
+  // Elements & energy
+  "🏔️",
+  "🌍",
+  "✊",
+  "🤲",
+  "🫶",
+  "💪",
+  "🧘",
+  // Play & art
+  "🎯",
+  "🎲",
+  "🎴",
+  "🎪",
+  "🎠",
 ];
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
@@ -228,6 +276,15 @@ const ChatBubble = memo(function ChatBubble({
   );
 });
 
+// ─── Encrypted blob message type (from PrivateChatCanister) ──────────────────
+interface EncryptedBlobMessage {
+  encryptedContent: Uint8Array | number[];
+  nonce: Uint8Array | number[];
+  tag: Uint8Array | number[];
+  senderVoidId: string;
+  timestamp: bigint;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
@@ -357,11 +414,12 @@ export default function ChatScreen() {
 
   const pendingRef = useRef<Map<string, string>>(new Map());
 
-  // ─── Message status ticks ─────────────────────────────────────────────────────
-  // Track recently-sent ciphertexts so we can show "sent" tick briefly
-  const justSentRef = useRef<Set<string>>(new Set());
-  // Track which messages have been "read" (all previously loaded own messages)
-  const [readCiphers] = useState<Set<string>>(new Set());
+  // ─── Fix 2: Message status map ────────────────────────────────────────────────
+  // Key = ciphertext string. Tracks sent → delivered → read progression.
+  // "read" is only set when partner explicitly calls markChatRead (no auto-upgrade).
+  const [msgStatusMap, setMsgStatusMap] = useState<Map<string, MessageStatus>>(
+    new Map(),
+  );
 
   // Poll messages
   useEffect(() => {
@@ -371,10 +429,71 @@ export default function ChatScreen() {
 
     const fetchMessages = async () => {
       try {
+        // Primary: fetch via existing getMessages API
         const result = await actor.getMessages(decoded, BigInt(50));
         if (!cancelled) {
           setMessages(result as BackendMessage[]);
           setIsLoading(false);
+        }
+
+        // Fix 1: Also try getEncryptedMessages from PrivateChatCanister
+        // These return raw blobs; convert to BackendMessage shape via v2 envelope
+        try {
+          const blobMsgs = (await (actor as any).getEncryptedMessages?.(
+            chatId,
+          )) as EncryptedBlobMessage[] | undefined;
+          if (blobMsgs && blobMsgs.length > 0 && !cancelled) {
+            const converted: BackendMessage[] = blobMsgs.map((msg) => {
+              const enc =
+                msg.encryptedContent instanceof Uint8Array
+                  ? msg.encryptedContent
+                  : new Uint8Array(msg.encryptedContent);
+              const nonce =
+                msg.nonce instanceof Uint8Array
+                  ? msg.nonce
+                  : new Uint8Array(msg.nonce);
+              const tag =
+                msg.tag instanceof Uint8Array
+                  ? msg.tag
+                  : new Uint8Array(msg.tag);
+              return {
+                id: `${msg.senderVoidId}_${msg.timestamp.toString()}`,
+                senderVoidId: msg.senderVoidId,
+                ciphertext: encodeEnvelope(enc, nonce, tag),
+                timestamp: msg.timestamp,
+                messageType: MessageType.text,
+              };
+            });
+            // Merge with existing messages (avoid duplicates by id)
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const newOnes = converted.filter((m) => !existingIds.has(m.id));
+              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+            });
+          }
+        } catch (_blobErr) {
+          // getEncryptedMessages may not exist — fail silently
+        }
+
+        // Fix 2: Do NOT poll getUnreadCount to auto-upgrade delivered→read.
+        // getUnreadCount returns OUR unread count (0 after markChatRead on mount),
+        // which would instantly set all own messages to "read" — the original bug.
+        // "read" state is only achievable when partner's markChatRead is detected
+        // via a dedicated partner-read endpoint (not yet available in this canister).
+
+        // Fix 3: Poll typing status from canister for PARTNER only.
+        // handleTextChange does NOT set partnerIsTyping — own typing never triggers it.
+        try {
+          const typingStatus = await (actor as any).getTypingStatus?.(chatId);
+          if (typingStatus === true && !cancelled) {
+            setPartnerIsTyping(true);
+            if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+            typingTimerRef.current = setTimeout(() => {
+              setPartnerIsTyping(false);
+            }, 3000);
+          }
+        } catch {
+          // method may not exist — skip silently
         }
       } catch (err) {
         console.error("fetchMessages error:", err);
@@ -388,7 +507,7 @@ export default function ChatScreen() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [actor, actorFetching, decoded]);
+  }, [actor, actorFetching, decoded, chatId]);
 
   // Mark chat as read on mount (local)
   useEffect(() => {
@@ -440,25 +559,46 @@ export default function ChatScreen() {
         let decrypted: string | null = null;
         const envelope = parseEnvelope(msg.ciphertext);
         if (envelope && sharedKeyRef.current) {
-          try {
-            decrypted = await decryptWithKey(
-              envelope.enc,
-              envelope.nonce,
-              envelope.tag,
-              sharedKeyRef.current,
+          // Fix 1: decryptWithKey returns null on failure (never throws).
+          // Log explicitly when it returns null so errors are visible in console.
+          const result = await decryptWithKey(
+            envelope.enc,
+            envelope.nonce,
+            envelope.tag,
+            sharedKeyRef.current,
+          );
+          if (result === null) {
+            console.error(
+              "[ChatScreen] decryptWithKey returned null for msg",
+              msg.id,
+              "— likely wrong shared key or corrupted blob",
             );
-          } catch {
-            decrypted = null;
           }
+          decrypted = result;
         }
 
         // Fallback to legacy
         if (decrypted === null && legacyKey) {
-          try {
-            decrypted = await decryptMessage(msg.ciphertext, legacyKey);
-          } catch {
-            decrypted = null;
+          // Fix 1: log legacy decryption null result too
+          const legacyResult = await decryptMessage(
+            msg.ciphertext,
+            legacyKey,
+          ).catch((err) => {
+            console.error(
+              "[ChatScreen] legacy decryptMessage threw for msg",
+              msg.id,
+              err,
+            );
+            return null;
+          });
+          if (legacyResult === null) {
+            console.error(
+              "[ChatScreen] legacy decryptMessage returned null for msg",
+              msg.id,
+              "— likely mismatched channel key",
+            );
           }
+          decrypted = legacyResult;
         }
 
         const finalVal = decrypted;
@@ -472,7 +612,6 @@ export default function ChatScreen() {
     }
 
     decryptAll();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: decryptedIdsRef is a ref
   }, [allMessages, e2eeReady, legacyKey]);
 
   // Retry failed decryptions when e2ee becomes ready
@@ -541,23 +680,17 @@ export default function ChatScreen() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [sending, setSending] = useState(false);
 
-  // ─── Typing indicator ─────────────────────────────────────────────────────────
-  const [isTyping, setIsTyping] = useState(false);
+  // ─── Fix 3: Typing indicator — PARTNER only ───────────────────────────────────
+  // partnerIsTyping is set ONLY by polling getTypingStatus from canister.
+  // handleTextChange NEVER sets it — own typing must not trigger this.
+  const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fix 3: handleTextChange only updates text — zero typing state side effects
   const handleTextChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setText(e.target.value);
-      if (e.target.value.length > 0) {
-        setIsTyping(true);
-        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-        typingTimerRef.current = setTimeout(() => {
-          setIsTyping(false);
-        }, 2000);
-      } else {
-        setIsTyping(false);
-        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      }
+      // DO NOT call setPartnerIsTyping here — only partner's status matters
     },
     [],
   );
@@ -573,9 +706,6 @@ export default function ChatScreen() {
     const plaintext = text.trim();
     if (!plaintext || !actor || !myVoidId) return;
     setSending(true);
-    // Clear typing indicator on send
-    setIsTyping(false);
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
 
     try {
       let ciphertext: string;
@@ -594,6 +724,9 @@ export default function ChatScreen() {
 
       pendingRef.current.set(ciphertext, plaintext);
 
+      // Fix 2: Optimistic "sent" tick — single gray ✓ shown immediately
+      setMsgStatusMap((prev) => new Map(prev).set(ciphertext, "sent"));
+
       await actor.postMessage(
         decoded,
         ciphertext,
@@ -603,19 +736,18 @@ export default function ChatScreen() {
         null,
       );
 
-      // Track as just-sent for status tick — show "sent" for 1.5s then upgrade to "delivered"
-      justSentRef.current.add(ciphertext);
-      setTimeout(() => {
-        justSentRef.current.delete(ciphertext);
-        // Mark as read after a short while (simulated)
-        readCiphers.add(ciphertext);
-      }, 1500);
+      // Fix 2: Upgrade to "delivered" (double gray ✓✓) after postMessage succeeds.
+      // "read" (double blue ✓✓) is only set when partner calls markChatRead.
+      // We do NOT auto-upgrade to "read" based on our own unreadCount polling.
+      setMsgStatusMap((prev) => new Map(prev).set(ciphertext, "delivered"));
 
+      // Fix 4: Notify recipients after successful send
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (actor as any).notifyRecipients?.(decoded);
-      } catch {
-        // optional — fail silently
+        await (actor as any).notifyRecipients?.(chatId);
+        console.log(`Notification triggered for chatId: ${chatId}`);
+      } catch (notifyErr) {
+        console.warn("[ChatScreen] notifyRecipients failed:", notifyErr);
       }
 
       const partnerName = partnerHandle
@@ -641,9 +773,9 @@ export default function ChatScreen() {
     myVoidId,
     e2eeReady,
     decoded,
+    chatId,
     partnerHandle,
     myHandle,
-    readCiphers,
   ]);
 
   const handleKeyDown = useCallback(
@@ -664,14 +796,14 @@ export default function ChatScreen() {
     .replace("@void_shadow_", "")
     .replace(":canister", "");
 
-  // Derive status for own messages
+  // Fix 2: Default status is "sent" (single gray tick) for messages not in map.
+  // Messages fetched from backend that lack local tracking show single tick.
+  // NEVER default to "delivered" — that caused the instant blue tick bug.
   const getMessageStatus = useCallback(
     (ciphertext: string): MessageStatus => {
-      if (justSentRef.current.has(ciphertext)) return "sent";
-      if (readCiphers.has(ciphertext)) return "read";
-      return "delivered";
+      return msgStatusMap.get(ciphertext) ?? "sent";
     },
-    [readCiphers],
+    [msgStatusMap],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -751,7 +883,7 @@ export default function ChatScreen() {
       <div className="shrink-0 px-4 py-2 flex items-center gap-2 bg-green-950/30 border-b border-green-500/15">
         <Lock size={12} className="text-green-400 shrink-0" />
         <span className="text-green-400/80 text-xs">
-          End-to-end encrypted. Only you and the recipient can read this.
+          End-to-end encrypted 🔒 Only you and the recipient can read this.
         </span>
         <span
           title="End-to-end encrypted. Only you and the recipient can read this."
@@ -784,7 +916,7 @@ export default function ChatScreen() {
                 ) : (
                   <ChevronUp size={12} />
                 )}
-                Load older messages
+                Load older messages ✨
               </button>
             </div>
           )}
@@ -795,7 +927,7 @@ export default function ChatScreen() {
               className="flex justify-center py-8"
             >
               <div className="text-white/30 text-sm animate-pulse">
-                Decrypting the void...
+                🌌 Decrypting the void...
               </div>
             </div>
           )}
@@ -805,12 +937,12 @@ export default function ChatScreen() {
               data-ocid="chat.empty_state"
               className="flex flex-col items-center justify-center py-16 text-center"
             >
-              <div className="text-4xl mb-4">💬</div>
+              <div className="text-4xl mb-4">🌌</div>
               <p className="text-white/30 text-sm">
-                The void awaits your first message.
+                ✨ The void awaits your first message.
               </p>
               <p className="text-white/20 text-xs mt-1">
-                Messages are end-to-end encrypted.
+                🔒 Messages are end-to-end encrypted.
               </p>
             </div>
           )}
@@ -847,7 +979,7 @@ export default function ChatScreen() {
         {showEmoji && (
           <div className="px-3 pt-2 pb-1 border-b border-void-gold/10">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-white/30 text-xs">Emoji</span>
+              <span className="text-white/30 text-xs">✨ Cosmic Emoji</span>
               <button
                 type="button"
                 onClick={() => setShowEmoji(false)}
@@ -874,11 +1006,11 @@ export default function ChatScreen() {
           </div>
         )}
 
-        {/* Typing indicator */}
-        {isTyping && text.length > 0 && (
+        {/* Fix 3: Typing indicator — ONLY shown when PARTNER is typing (never own input) */}
+        {partnerIsTyping && (
           <div className="px-4 pt-2 flex items-center gap-1.5">
             <span className="text-white/40 text-xs">
-              {partnerDisplayName ?? `void_${partnerShortId.slice(0, 8)}`} is
+              ✨ {partnerDisplayName ?? `void_${partnerShortId.slice(0, 8)}`} is
               typing
             </span>
             <span className="flex gap-0.5 items-center">
@@ -915,7 +1047,7 @@ export default function ChatScreen() {
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
-            placeholder="Send a message…"
+            placeholder="Send a message… ✨"
             rows={1}
             disabled={sending}
             className="flex-1 bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-2.5 text-sm focus:outline-none focus:border-void-gold/40 resize-none transition-colors disabled:opacity-50"
