@@ -181,12 +181,21 @@ export function useCreateDM() {
     }: { voidId1: string; voidId2: string }) => {
       if (!actor) throw new Error("Actor not available");
 
-      // Always register/upsert voidId1 for this caller before creating a DM.
-      // This covers fresh logins, stale profiles, or mismatched voidIds.
+      // Smart registration: check existing profile first, only register/upsert
+      // if needed. Preserves cosmicHandle and e2eePublicKey on upsert.
       try {
-        await actor.saveCallerUserProfile({ voidId: voidId1 });
-      } catch {
-        // Already registered or failed — still attempt createDM
+        const existing = await actor.getCallerUserProfile().catch(() => null);
+        if (!existing) {
+          await actor.saveCallerUserProfile({ voidId: voidId1 });
+        } else if (existing.voidId !== voidId1) {
+          await actor.saveCallerUserProfile({
+            voidId: voidId1,
+            cosmicHandle: existing.cosmicHandle ?? undefined,
+            e2eePublicKey: existing.e2eePublicKey ?? undefined,
+          });
+        }
+      } catch (regErr) {
+        console.warn("[useCreateDM] profile registration failed:", regErr);
       }
 
       return actor.createDM(voidId1, voidId2);
