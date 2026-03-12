@@ -181,15 +181,12 @@ export function useCreateDM() {
     }: { voidId1: string; voidId2: string }) => {
       if (!actor) throw new Error("Actor not available");
 
-      // Ensure caller's voidId is registered in the backend before creating a DM.
-      // Without this, the backend rejects the call with "You must own at least one of the VOID IDs".
+      // Always register/upsert voidId1 for this caller before creating a DM.
+      // This covers fresh logins, stale profiles, or mismatched voidIds.
       try {
-        const profile = await actor.getCallerUserProfile().catch(() => null);
-        if (!profile) {
-          await actor.saveCallerUserProfile({ voidId: voidId1 });
-        }
+        await actor.saveCallerUserProfile({ voidId: voidId1 });
       } catch {
-        // If registration fails, still attempt createDM (might already be registered)
+        // Already registered or failed — still attempt createDM
       }
 
       return actor.createDM(voidId1, voidId2);

@@ -1,15 +1,6 @@
 /**
- * ChatScreen — Full Telegram-style private DM view with true ECDH E2EE.
- *
- * E2EE Flow:
- *   1. On mount: check for existing ECDH private key in session (ref).
- *      If none, generate a new P-256 key pair and store public key in backend.
- *   2. Fetch partner's public key from backend.
- *   3. Derive shared AES-GCM key via ECDH + HKDF.
- *   4. Persist shared key in IndexedDB.
- *
- * Message format: JSON v2 envelope stored as `ciphertext` in existing backend.
- * Falls back to legacy AES-GCM (crypto.ts) for older messages.
+ * ChatScreen — Telegram-style private DM view.
+ * E2EE decryption removed temporarily; messages rendered as plain text from ciphertext field.
  */
 
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -22,26 +13,12 @@ import VoidAvatar from "../components/VoidAvatar";
 import { useActor } from "../hooks/useActor";
 import { useGetCosmicHandle } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
-import {
-  decryptWithKey,
-  deriveSharedKey,
-  encodeEnvelope,
-  encryptWithKey,
-  exportPublicKey,
-  generateECDHKeyPair,
-  importPublicKey,
-  loadSharedKey,
-  normalizeDMChatId,
-  parseEnvelope,
-  storeSharedKey,
-} from "../lib/E2EEHelper";
+import { normalizeDMChatId } from "../lib/E2EEHelper";
 import { sendLocalNotification } from "../lib/NotificationService";
-import { decryptMessage, getChannelKey } from "../lib/crypto";
 import { markChatReadLocal } from "./Messages";
 
-// ─── Emoji set (60+ cosmic/spiritual) ────────────────────────────────────────
+// ─── Emoji set ────────────────────────────────────────────────────────────────
 const EMOJI_SET = [
-  // Original set
   "✨",
   "🌑",
   "☀️",
@@ -72,7 +49,6 @@ const EMOJI_SET = [
   "☯️",
   "🌀",
   "🔯",
-  // Cosmic & space
   "🌟",
   "💥",
   "🎇",
@@ -83,7 +59,6 @@ const EMOJI_SET = [
   "👽",
   "🔭",
   "⚗️",
-  // Mystical & spiritual
   "🧿",
   "🪬",
   "🫧",
@@ -94,7 +69,6 @@ const EMOJI_SET = [
   "🕯️",
   "🪷",
   "🌺",
-  // Mythical & nature
   "🦄",
   "🐉",
   "🦅",
@@ -105,7 +79,6 @@ const EMOJI_SET = [
   "⛅",
   "🌤️",
   "🌋",
-  // Elements & energy
   "🏔️",
   "🌍",
   "✊",
@@ -113,7 +86,6 @@ const EMOJI_SET = [
   "🫶",
   "💪",
   "🧘",
-  // Play & art
   "🎯",
   "🎲",
   "🎴",
@@ -123,11 +95,6 @@ const EMOJI_SET = [
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
-/**
- * Extract the DM partner's voidId from the channel ID.
- * Channel format: DM-@void_shadow_A:canister_@void_shadow_B:canister
- * FIXED: splits on "_@void_shadow_" not plain "_" to handle voidIds with underscores.
- */
 function getDMPartner(channelId: string, myVoidId: string): string {
   const body = channelId.startsWith("DM-") ? channelId.slice(3) : channelId;
   const separator = "_@void_shadow_";
@@ -141,7 +108,7 @@ function getDMPartner(channelId: string, myVoidId: string): string {
 }
 
 function formatTime(timestamp: bigint): string {
-  const date = new Date(Number(timestamp) / 1_000_000); // nanoseconds → ms
+  const date = new Date(Number(timestamp) / 1_000_000);
   const h = date.getHours().toString().padStart(2, "0");
   const m = date.getMinutes().toString().padStart(2, "0");
   return `${h}:${m}`;
@@ -171,7 +138,6 @@ function StatusTicks({ status }: { status: MessageStatus }) {
       </span>
     );
   }
-  // read — double blue
   return (
     <span
       className="text-[10px] leading-none tracking-[-2px]"
@@ -187,7 +153,7 @@ interface ChatBubbleProps {
   isOwn: boolean;
   senderHandle: string | null;
   senderVoidId: string;
-  text: string | null | undefined; // undefined = pending decrypt, null = failed
+  text: string | null | undefined;
   timestamp: bigint;
   index: number;
   status?: MessageStatus;
@@ -201,12 +167,8 @@ const ChatBubble = memo(function ChatBubble({
   index,
   status,
 }: ChatBubbleProps) {
-  const displayText =
-    text === undefined
-      ? null // shimmer
-      : text === null
-        ? "🔒" // failed decrypt
-        : text;
+  // Simplified: no E2EE — just show text directly, empty string as fallback
+  const displayText = text ?? "";
 
   return (
     <div
@@ -215,7 +177,6 @@ const ChatBubble = memo(function ChatBubble({
         isOwn ? "items-end" : "items-start"
       } max-w-[85%] ${isOwn ? "ml-auto" : "mr-auto"}`}
     >
-      {/* Sender name — only for received messages */}
       {!isOwn && senderHandle && (
         <div
           className="text-[10px] font-semibold mb-1 px-1"
@@ -225,40 +186,27 @@ const ChatBubble = memo(function ChatBubble({
         </div>
       )}
 
-      {/* Bubble */}
-      {displayText === null ? (
-        // Loading shimmer
-        <div
-          className="w-32 h-8 animate-pulse"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            borderRadius: "2px",
-          }}
-        />
-      ) : (
-        <div
-          className="px-4 py-2.5 max-w-full break-words"
-          style={{
-            background: isOwn
-              ? "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,180,0,0.10))"
-              : "linear-gradient(135deg, rgba(123,47,190,0.22), rgba(90,30,150,0.14))",
-            border: `1px solid ${
-              isOwn ? "rgba(255,215,0,0.25)" : "rgba(123,47,190,0.3)"
-            }`,
-            color: isOwn ? "rgba(255,215,0,0.95)" : "rgba(220,200,255,0.9)",
-            borderRadius: isOwn ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-            boxShadow: isOwn
-              ? "0 2px 12px rgba(255,215,0,0.07)"
-              : "0 2px 12px rgba(123,47,190,0.1)",
-          }}
-        >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {displayText}
-          </p>
-        </div>
-      )}
+      <div
+        className="px-4 py-2.5 max-w-full break-words"
+        style={{
+          background: isOwn
+            ? "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,180,0,0.10))"
+            : "linear-gradient(135deg, rgba(123,47,190,0.22), rgba(90,30,150,0.14))",
+          border: `1px solid ${
+            isOwn ? "rgba(255,215,0,0.25)" : "rgba(123,47,190,0.3)"
+          }`,
+          color: isOwn ? "rgba(255,215,0,0.95)" : "rgba(220,200,255,0.9)",
+          borderRadius: isOwn ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+          boxShadow: isOwn
+            ? "0 2px 12px rgba(255,215,0,0.07)"
+            : "0 2px 12px rgba(123,47,190,0.1)",
+        }}
+      >
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {displayText}
+        </p>
+      </div>
 
-      {/* Timestamp + status ticks */}
       <div
         className={`flex items-center gap-1 mt-1 px-1 ${
           isOwn ? "flex-row-reverse" : "flex-row"
@@ -276,15 +224,6 @@ const ChatBubble = memo(function ChatBubble({
   );
 });
 
-// ─── Encrypted blob message type (from PrivateChatCanister) ──────────────────
-interface EncryptedBlobMessage {
-  encryptedContent: Uint8Array | number[];
-  nonce: Uint8Array | number[];
-  tag: Uint8Array | number[];
-  senderVoidId: string;
-  timestamp: bigint;
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
@@ -297,99 +236,19 @@ export default function ChatScreen() {
   const myVoidId = useVoidId();
   const { actor, isFetching: actorFetching } = useActor();
 
-  // Partner voidId
   const partnerVoidId = useMemo(
     () => (myVoidId ? getDMPartner(decoded, myVoidId) : decoded),
     [decoded, myVoidId],
   );
 
-  // Partner cosmic handle
   const { data: partnerHandle } = useGetCosmicHandle(partnerVoidId);
   const { data: myHandleData } = useGetCosmicHandle(myVoidId ?? "");
   const myHandle = myHandleData ?? null;
-
-  // ─── E2EE state ───────────────────────────────────────────────────────────────
-  const myKeyPairRef = useRef<CryptoKeyPair | null>(null);
-  const [e2eeReady, setE2eeReady] = useState(false);
-  const sharedKeyRef = useRef<CryptoKey | null>(null);
-  const [legacyKey, setLegacyKey] = useState<CryptoKey | null>(null);
 
   const chatId = useMemo(
     () => (myVoidId ? normalizeDMChatId(myVoidId, partnerVoidId) : decoded),
     [myVoidId, partnerVoidId, decoded],
   );
-
-  // ─── E2EE initialization ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!actor || actorFetching || !myVoidId) return;
-
-    let cancelled = false;
-
-    async function initE2EE() {
-      try {
-        const existingShared = await loadSharedKey(chatId);
-        if (existingShared && !cancelled) {
-          sharedKeyRef.current = existingShared;
-          setE2eeReady(true);
-          return;
-        }
-
-        if (!myKeyPairRef.current) {
-          const keyPair = await generateECDHKeyPair();
-          myKeyPairRef.current = keyPair;
-          const pubKeyBytes = await exportPublicKey(keyPair.publicKey);
-          await actor!.storeE2EEPublicKey(pubKeyBytes);
-        }
-
-        const partnerPubKeyBytes = await actor!.getE2EEPublicKey(partnerVoidId);
-        if (!partnerPubKeyBytes || partnerPubKeyBytes.length === 0) {
-          if (!cancelled) setE2eeReady(false);
-          return;
-        }
-
-        const partnerPubKey = await importPublicKey(
-          new Uint8Array(partnerPubKeyBytes),
-        );
-        const shared = await deriveSharedKey(
-          myKeyPairRef.current!.privateKey,
-          partnerPubKey,
-          chatId,
-        );
-
-        await storeSharedKey(chatId, shared);
-
-        if (!cancelled) {
-          sharedKeyRef.current = shared;
-          setE2eeReady(true);
-        }
-      } catch (err) {
-        console.warn(
-          "[ChatScreen] E2EE init failed, using legacy fallback:",
-          err,
-        );
-        if (!cancelled) setE2eeReady(false);
-      }
-    }
-
-    initE2EE();
-
-    const retryInterval = setInterval(() => {
-      if (!sharedKeyRef.current) initE2EE();
-      else clearInterval(retryInterval);
-    }, 3000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(retryInterval);
-    };
-  }, [actor, actorFetching, myVoidId, partnerVoidId, chatId]);
-
-  // Load legacy channel key for decrypting older messages
-  useEffect(() => {
-    getChannelKey(decoded)
-      .then((k) => setLegacyKey(k))
-      .catch(() => {});
-  }, [decoded]);
 
   // ─── Messages ─────────────────────────────────────────────────────────────────
   interface BackendMessage {
@@ -406,17 +265,6 @@ export default function ChatScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  type DecryptState = string | null | undefined;
-  const [decryptedMap, setDecryptedMap] = useState<Map<string, DecryptState>>(
-    new Map(),
-  );
-  const decryptedIdsRef = useRef<Set<string>>(new Set());
-
-  const pendingRef = useRef<Map<string, string>>(new Map());
-
-  // ─── Fix 2: Message status map ────────────────────────────────────────────────
-  // Key = ciphertext string. Tracks sent → delivered → read progression.
-  // "read" is only set when partner explicitly calls markChatRead (no auto-upgrade).
   const [msgStatusMap, setMsgStatusMap] = useState<Map<string, MessageStatus>>(
     new Map(),
   );
@@ -429,60 +277,13 @@ export default function ChatScreen() {
 
     const fetchMessages = async () => {
       try {
-        // Primary: fetch via existing getMessages API
         const result = await actor.getMessages(decoded, BigInt(50));
         if (!cancelled) {
           setMessages(result as BackendMessage[]);
           setIsLoading(false);
         }
 
-        // Fix 1: Also try getEncryptedMessages from PrivateChatCanister
-        // These return raw blobs; convert to BackendMessage shape via v2 envelope
-        try {
-          const blobMsgs = (await (actor as any).getEncryptedMessages?.(
-            chatId,
-          )) as EncryptedBlobMessage[] | undefined;
-          if (blobMsgs && blobMsgs.length > 0 && !cancelled) {
-            const converted: BackendMessage[] = blobMsgs.map((msg) => {
-              const enc =
-                msg.encryptedContent instanceof Uint8Array
-                  ? msg.encryptedContent
-                  : new Uint8Array(msg.encryptedContent);
-              const nonce =
-                msg.nonce instanceof Uint8Array
-                  ? msg.nonce
-                  : new Uint8Array(msg.nonce);
-              const tag =
-                msg.tag instanceof Uint8Array
-                  ? msg.tag
-                  : new Uint8Array(msg.tag);
-              return {
-                id: `${msg.senderVoidId}_${msg.timestamp.toString()}`,
-                senderVoidId: msg.senderVoidId,
-                ciphertext: encodeEnvelope(enc, nonce, tag),
-                timestamp: msg.timestamp,
-                messageType: MessageType.text,
-              };
-            });
-            // Merge with existing messages (avoid duplicates by id)
-            setMessages((prev) => {
-              const existingIds = new Set(prev.map((m) => m.id));
-              const newOnes = converted.filter((m) => !existingIds.has(m.id));
-              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
-            });
-          }
-        } catch (_blobErr) {
-          // getEncryptedMessages may not exist — fail silently
-        }
-
-        // Fix 2: Do NOT poll getUnreadCount to auto-upgrade delivered→read.
-        // getUnreadCount returns OUR unread count (0 after markChatRead on mount),
-        // which would instantly set all own messages to "read" — the original bug.
-        // "read" state is only achievable when partner's markChatRead is detected
-        // via a dedicated partner-read endpoint (not yet available in this canister).
-
-        // Fix 3: Poll typing status from canister for PARTNER only.
-        // handleTextChange does NOT set partnerIsTyping — own typing never triggers it.
+        // Poll typing status from canister for PARTNER only
         try {
           const typingStatus = await (actor as any).getTypingStatus?.(chatId);
           if (typingStatus === true && !cancelled) {
@@ -514,120 +315,20 @@ export default function ChatScreen() {
     markChatReadLocal(decoded);
   }, [decoded]);
 
-  // Mark chat as read on canister when actor is ready
+  // Mark chat as read on canister
   useEffect(() => {
     if (!actor || actorFetching) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (actor as any).markChatRead?.(decoded);
     } catch {
       // optional — fail silently
     }
   }, [actor, actorFetching, decoded]);
 
-  // Decrypt messages
   const allMessages = useMemo(
     () => [...olderMessages, ...messages],
     [olderMessages, messages],
   );
-
-  useEffect(() => {
-    if (!e2eeReady && !legacyKey) return;
-
-    async function decryptAll() {
-      for (const msg of allMessages) {
-        if (decryptedIdsRef.current.has(msg.id)) continue;
-        // Mark as pending
-        setDecryptedMap((prev) => {
-          const next = new Map(prev);
-          if (!next.has(msg.id)) next.set(msg.id, undefined);
-          return next;
-        });
-
-        // Check pending optimistic
-        if (pendingRef.current.has(msg.ciphertext)) {
-          const plain = pendingRef.current.get(msg.ciphertext)!;
-          setDecryptedMap((prev) => {
-            const next = new Map(prev);
-            next.set(msg.id, plain);
-            return next;
-          });
-          continue;
-        }
-
-        // Try V2 ECDH envelope
-        let decrypted: string | null = null;
-        const envelope = parseEnvelope(msg.ciphertext);
-        if (envelope && sharedKeyRef.current) {
-          // Fix 1: decryptWithKey returns null on failure (never throws).
-          // Log explicitly when it returns null so errors are visible in console.
-          const result = await decryptWithKey(
-            envelope.enc,
-            envelope.nonce,
-            envelope.tag,
-            sharedKeyRef.current,
-          );
-          if (result === null) {
-            console.error(
-              "[ChatScreen] decryptWithKey returned null for msg",
-              msg.id,
-              "— likely wrong shared key or corrupted blob",
-            );
-          }
-          decrypted = result;
-        }
-
-        // Fallback to legacy
-        if (decrypted === null && legacyKey) {
-          // Fix 1: log legacy decryption null result too
-          const legacyResult = await decryptMessage(
-            msg.ciphertext,
-            legacyKey,
-          ).catch((err) => {
-            console.error(
-              "[ChatScreen] legacy decryptMessage threw for msg",
-              msg.id,
-              err,
-            );
-            return null;
-          });
-          if (legacyResult === null) {
-            console.error(
-              "[ChatScreen] legacy decryptMessage returned null for msg",
-              msg.id,
-              "— likely mismatched channel key",
-            );
-          }
-          decrypted = legacyResult;
-        }
-
-        const finalVal = decrypted;
-        decryptedIdsRef.current.add(msg.id);
-        setDecryptedMap((prev) => {
-          const next = new Map(prev);
-          next.set(msg.id, finalVal);
-          return next;
-        });
-      }
-    }
-
-    decryptAll();
-  }, [allMessages, e2eeReady, legacyKey]);
-
-  // Retry failed decryptions when e2ee becomes ready
-  useEffect(() => {
-    if (!e2eeReady) return;
-    setDecryptedMap((prev) => {
-      const next = new Map(prev);
-      for (const [id, val] of next) {
-        if (val === null) {
-          next.delete(id);
-          decryptedIdsRef.current.delete(id);
-        }
-      }
-      return next;
-    });
-  }, [e2eeReady]);
 
   // ─── Load older messages ──────────────────────────────────────────────────────
   const handleLoadOlder = useCallback(async () => {
@@ -680,22 +381,17 @@ export default function ChatScreen() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [sending, setSending] = useState(false);
 
-  // ─── Fix 3: Typing indicator — PARTNER only ───────────────────────────────────
-  // partnerIsTyping is set ONLY by polling getTypingStatus from canister.
-  // handleTextChange NEVER sets it — own typing must not trigger this.
+  // Typing indicator — PARTNER only
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fix 3: handleTextChange only updates text — zero typing state side effects
   const handleTextChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setText(e.target.value);
-      // DO NOT call setPartnerIsTyping here — only partner's status matters
     },
     [],
   );
 
-  // Cleanup typing timer on unmount
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -707,43 +403,32 @@ export default function ChatScreen() {
     if (!plaintext || !actor || !myVoidId) return;
     setSending(true);
 
+    // Optimistic: add sent message to local list immediately
+    const optimisticId = `optimistic_${Date.now()}`;
+    const optimisticMsg: BackendMessage = {
+      id: optimisticId,
+      senderVoidId: myVoidId,
+      ciphertext: plaintext,
+      timestamp: BigInt(Date.now()) * BigInt(1_000_000),
+      messageType: MessageType.text,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setMsgStatusMap((prev) => new Map(prev).set(plaintext, "sent"));
+
     try {
-      let ciphertext: string;
-
-      if (e2eeReady && sharedKeyRef.current) {
-        const { encryptedContent, nonce, tag } = await encryptWithKey(
-          plaintext,
-          sharedKeyRef.current,
-        );
-        ciphertext = encodeEnvelope(encryptedContent, nonce, tag);
-      } else {
-        const fallbackKey = await getChannelKey(decoded);
-        const { encryptMessage: legacyEncrypt } = await import("../lib/crypto");
-        ciphertext = await legacyEncrypt(plaintext, fallbackKey);
-      }
-
-      pendingRef.current.set(ciphertext, plaintext);
-
-      // Fix 2: Optimistic "sent" tick — single gray ✓ shown immediately
-      setMsgStatusMap((prev) => new Map(prev).set(ciphertext, "sent"));
-
       await actor.postMessage(
         decoded,
-        ciphertext,
+        plaintext,
         myVoidId,
         MessageType.text,
         null,
         null,
       );
 
-      // Fix 2: Upgrade to "delivered" (double gray ✓✓) after postMessage succeeds.
-      // "read" (double blue ✓✓) is only set when partner calls markChatRead.
-      // We do NOT auto-upgrade to "read" based on our own unreadCount polling.
-      setMsgStatusMap((prev) => new Map(prev).set(ciphertext, "delivered"));
+      setMsgStatusMap((prev) => new Map(prev).set(plaintext, "delivered"));
 
-      // Fix 4: Notify recipients after successful send
+      // Notify recipients after successful send
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (actor as any).notifyRecipients?.(chatId);
         console.log(`Notification triggered for chatId: ${chatId}`);
       } catch (notifyErr) {
@@ -764,19 +449,12 @@ export default function ChatScreen() {
     } catch (err) {
       console.error("sendMessage error:", err);
       toast.error("Failed to send message. Try again.");
+      // Remove optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     } finally {
       setSending(false);
     }
-  }, [
-    text,
-    actor,
-    myVoidId,
-    e2eeReady,
-    decoded,
-    chatId,
-    partnerHandle,
-    myHandle,
-  ]);
+  }, [text, actor, myVoidId, decoded, chatId, partnerHandle, myHandle]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -796,9 +474,6 @@ export default function ChatScreen() {
     .replace("@void_shadow_", "")
     .replace(":canister", "");
 
-  // Fix 2: Default status is "sent" (single gray tick) for messages not in map.
-  // Messages fetched from backend that lack local tracking show single tick.
-  // NEVER default to "delivered" — that caused the instant blue tick bug.
   const getMessageStatus = useCallback(
     (ciphertext: string): MessageStatus => {
       return msgStatusMap.get(ciphertext) ?? "sent";
@@ -814,7 +489,6 @@ export default function ChatScreen() {
         className="shrink-0 px-4 py-3 border-b border-void-gold/15 flex items-center gap-3"
         style={{ background: "rgba(0,0,0,0.8)" }}
       >
-        {/* Back button */}
         <button
           type="button"
           data-ocid="chat.back.button"
@@ -825,10 +499,8 @@ export default function ChatScreen() {
           <ArrowLeft size={18} />
         </button>
 
-        {/* Partner avatar */}
         <VoidAvatar voidId={partnerVoidId} size="sm" />
 
-        {/* Partner name */}
         <div className="flex-1 min-w-0">
           <div
             className="font-bold text-base leading-tight truncate"
@@ -843,28 +515,18 @@ export default function ChatScreen() {
           )}
         </div>
 
-        {/* E2EE lock icon with hover tooltip */}
+        {/* E2EE lock icon — decorative */}
         <div
           className="shrink-0 relative group flex items-center gap-1.5 cursor-help"
           data-ocid="chat.e2ee.tooltip"
         >
-          <Lock
-            size={14}
-            style={{
-              color: e2eeReady
-                ? "rgba(34,197,94,0.9)"
-                : "rgba(255,255,255,0.2)",
-            }}
-          />
-          {e2eeReady && (
-            <span
-              className="text-[9px] font-mono tracking-wide hidden sm:block"
-              style={{ color: "rgba(34,197,94,0.7)" }}
-            >
-              E2EE
-            </span>
-          )}
-          {/* Tooltip */}
+          <Lock size={14} style={{ color: "rgba(34,197,94,0.9)" }} />
+          <span
+            className="text-[9px] font-mono tracking-wide hidden sm:block"
+            style={{ color: "rgba(34,197,94,0.7)" }}
+          >
+            E2EE
+          </span>
           <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 text-xs text-white/80 bg-black/90 border border-green-500/20 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
             End-to-end encrypted. Only you and the recipient can read this.
             <div
@@ -879,7 +541,7 @@ export default function ChatScreen() {
         </div>
       </div>
 
-      {/* E2EE banner */}
+      {/* E2EE banner — decorative */}
       <div className="shrink-0 px-4 py-2 flex items-center gap-2 bg-green-950/30 border-b border-green-500/15">
         <Lock size={12} className="text-green-400 shrink-0" />
         <span className="text-green-400/80 text-xs">
@@ -901,7 +563,6 @@ export default function ChatScreen() {
           className="h-full overflow-y-auto px-4 py-4 w-full overflow-x-hidden"
           style={{ background: "rgba(0,0,0,0.3)" }}
         >
-          {/* Load older button */}
           {hasMore && (
             <div className="flex justify-center mb-4">
               <button
@@ -927,7 +588,7 @@ export default function ChatScreen() {
               className="flex justify-center py-8"
             >
               <div className="text-white/30 text-sm animate-pulse">
-                🌌 Decrypting the void...
+                🌌 Loading messages...
               </div>
             </div>
           )}
@@ -961,7 +622,7 @@ export default function ChatScreen() {
                 isOwn={isOwn}
                 senderHandle={senderHandle}
                 senderVoidId={msg.senderVoidId}
-                text={decryptedMap.get(msg.id)}
+                text={msg.ciphertext}
                 timestamp={msg.timestamp}
                 index={idx + 1}
                 status={isOwn ? getMessageStatus(msg.ciphertext) : undefined}
@@ -1006,7 +667,7 @@ export default function ChatScreen() {
           </div>
         )}
 
-        {/* Fix 3: Typing indicator — ONLY shown when PARTNER is typing (never own input) */}
+        {/* Typing indicator — ONLY shown when PARTNER is typing */}
         {partnerIsTyping && (
           <div className="px-4 pt-2 flex items-center gap-1.5">
             <span className="text-white/40 text-xs">
