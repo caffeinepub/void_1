@@ -181,21 +181,24 @@ export function useCreateDM() {
     }: { voidId1: string; voidId2: string }) => {
       if (!actor) throw new Error("Actor not available");
 
-      // Smart registration: check existing profile first, only register/upsert
-      // if needed. Preserves cosmicHandle and e2eePublicKey on upsert.
+      // Always force-register the caller's principal → voidId mapping before
+      // calling createDM. The backend ownership check uses this mapping, and it
+      // can be stale across sessions even when profile data looks correct.
+      // Preserves cosmicHandle and e2eePublicKey if they exist on the profile.
       try {
         const existing = await actor.getCallerUserProfile().catch(() => null);
-        if (!existing) {
-          await actor.saveCallerUserProfile({ voidId: voidId1 });
-        } else if (existing.voidId !== voidId1) {
-          await actor.saveCallerUserProfile({
-            voidId: voidId1,
-            cosmicHandle: existing.cosmicHandle ?? undefined,
-            e2eePublicKey: existing.e2eePublicKey ?? undefined,
-          });
-        }
+        await actor.saveCallerUserProfile({
+          voidId: voidId1,
+          ...(existing?.cosmicHandle
+            ? { cosmicHandle: existing.cosmicHandle }
+            : {}),
+          ...(existing?.e2eePublicKey
+            ? { e2eePublicKey: existing.e2eePublicKey }
+            : {}),
+        });
       } catch (regErr) {
-        console.warn("[useCreateDM] profile registration failed:", regErr);
+        console.warn("[useCreateDM] profile registration warning:", regErr);
+        // Continue anyway — createDM may still succeed
       }
 
       return actor.createDM(voidId1, voidId2);
