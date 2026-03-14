@@ -1,6 +1,7 @@
 /**
  * ChatScreen — Telegram-style private DM view.
- * E2EE decryption removed temporarily; messages rendered as plain text from ciphertext field.
+ * E2EE: messages are decrypted client-side using the shared channel key (AES-GCM).
+ * Own sent messages are encrypted before posting; displayed optimistically via pendingPlaintext.
  */
 
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -11,10 +12,11 @@ import { toast } from "sonner";
 import { MessageType } from "../backend";
 import VoidAvatar from "../components/VoidAvatar";
 import { useActor } from "../hooks/useActor";
+import { useEncryption } from "../hooks/useEncryption";
 import { useGetCosmicHandle } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import { normalizeDMChatId } from "../lib/E2EEHelper";
-import { sendLocalNotification } from "../lib/NotificationService";
+import { sendDMNotification } from "../lib/NotificationService";
 import { markChatReadLocal } from "./Messages";
 
 // ─── Emoji set ────────────────────────────────────────────────────────────────
@@ -153,6 +155,7 @@ interface ChatBubbleProps {
   isOwn: boolean;
   senderHandle: string | null;
   senderVoidId: string;
+  /** undefined = still decrypting (shimmer), null = decrypt failed (lock), string = plaintext */
   text: string | null | undefined;
   timestamp: bigint;
   index: number;
@@ -167,8 +170,36 @@ const ChatBubble = memo(function ChatBubble({
   index,
   status,
 }: ChatBubbleProps) {
-  // Simplified: no E2EE — just show text directly, empty string as fallback
-  const displayText = text ?? "";
+  const renderContent = () => {
+    if (text === undefined) {
+      // Still decrypting — shimmer
+      return (
+        <span
+          className="text-sm italic animate-pulse"
+          style={{ color: "rgba(255,255,255,0.25)" }}
+        >
+          Decrypting…
+        </span>
+      );
+    }
+    if (text === null) {
+      // Decryption failed — locked
+      return (
+        <span
+          className="flex items-center gap-1.5 text-sm"
+          style={{ color: "rgba(255,255,255,0.25)" }}
+        >
+          <span>🔒</span>
+          <span className="italic">Sealed wisdom</span>
+        </span>
+      );
+    }
+    return (
+      <p className="text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+    );
+  };
+
+  const isLocked = text === null;
 
   return (
     <div
@@ -189,11 +220,17 @@ const ChatBubble = memo(function ChatBubble({
       <div
         className="px-4 py-2.5 max-w-full break-words"
         style={{
-          background: isOwn
-            ? "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,180,0,0.10))"
-            : "linear-gradient(135deg, rgba(123,47,190,0.22), rgba(90,30,150,0.14))",
+          background: isLocked
+            ? "rgba(255,255,255,0.03)"
+            : isOwn
+              ? "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,180,0,0.10))"
+              : "linear-gradient(135deg, rgba(123,47,190,0.22), rgba(90,30,150,0.14))",
           border: `1px solid ${
-            isOwn ? "rgba(255,215,0,0.25)" : "rgba(123,47,190,0.3)"
+            isLocked
+              ? "rgba(255,255,255,0.06)"
+              : isOwn
+                ? "rgba(255,215,0,0.25)"
+                : "rgba(123,47,190,0.3)"
           }`,
           color: isOwn ? "rgba(255,215,0,0.95)" : "rgba(220,200,255,0.9)",
           borderRadius: isOwn ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
@@ -202,9 +239,7 @@ const ChatBubble = memo(function ChatBubble({
             : "0 2px 12px rgba(123,47,190,0.1)",
         }}
       >
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-          {displayText}
-        </p>
+        {renderContent()}
       </div>
 
       <div
@@ -243,12 +278,34 @@ export default function ChatScreen() {
 
   const { data: partnerHandle } = useGetCosmicHandle(partnerVoidId);
   const { data: myHandleData } = useGetCosmicHandle(myVoidId ?? "");
-  const myHandle = myHandleData ?? null;
+  const _myHandle = myHandleData ?? null; // kept for future use
 
   const chatId = useMemo(
     () => (myVoidId ? normalizeDMChatId(myVoidId, partnerVoidId) : decoded),
     [myVoidId, partnerVoidId, decoded],
   );
+
+  // ─── E2EE ─────────────────────────────────────────────────────────────────────
+  // Use channel key derived from chatId so both parties share the same key
+  const {
+    decryptReceived,
+    encryptForSend,
+    isReady: encryptionReady,
+  } = useEncryption(chatId);
+
+  // Map of messageId → decrypted plaintext (null = failed decrypt)
+  const [decryptedMap, setDecryptedMap] = useState<Map<string, string | null>>(
+    new Map(),
+  );
+
+  // Tracks which message IDs we have already started decrypting (avoid duplicates)
+  const decryptingIds = useRef<Set<string>>(new Set());
+
+  // Tracks message IDs already seen by polling so we can detect new incoming messages
+  const knownMsgIds = useRef<Set<string>>(new Set());
+
+  // Plaintext for optimistically-added own messages (by optimistic ID)
+  const pendingPlaintext = useRef<Map<string, string>>(new Map());
 
   // ─── Messages ─────────────────────────────────────────────────────────────────
   interface BackendMessage {
@@ -270,6 +327,7 @@ export default function ChatScreen() {
   );
 
   // Poll messages
+  // biome-ignore lint/correctness/useExhaustiveDependencies: partnerHandle/myVoidId are refs-stable; adding them would reset the interval unnecessarily
   useEffect(() => {
     if (!actor || actorFetching) return;
 
@@ -279,7 +337,33 @@ export default function ChatScreen() {
       try {
         const result = await actor.getMessages(decoded, BigInt(50));
         if (!cancelled) {
-          setMessages(result as BackendMessage[]);
+          const fetched = result as BackendMessage[];
+
+          // Detect new incoming messages (from partner) for notification
+          if (knownMsgIds.current.size > 0 && myVoidId) {
+            for (const msg of fetched) {
+              if (
+                !knownMsgIds.current.has(msg.id) &&
+                msg.senderVoidId !== myVoidId
+              ) {
+                // New message from partner — notify with their name
+                const senderName = partnerHandle
+                  ? `@${partnerHandle.replace(/^@/, "")}`
+                  : msg.senderVoidId
+                    ? `@void_${msg.senderVoidId.slice(-8)}`
+                    : "someone";
+                sendDMNotification(senderName);
+                break; // one notification per poll cycle is enough
+              }
+            }
+          }
+
+          // Update known IDs
+          for (const msg of fetched) {
+            knownMsgIds.current.add(msg.id);
+          }
+
+          setMessages(fetched);
           setIsLoading(false);
         }
 
@@ -310,6 +394,64 @@ export default function ChatScreen() {
     };
   }, [actor, actorFetching, decoded, chatId]);
 
+  // ─── Decrypt newly arrived messages ──────────────────────────────────────────
+  const allMessages = useMemo(
+    () => [...olderMessages, ...messages],
+    [olderMessages, messages],
+  );
+
+  useEffect(() => {
+    if (!encryptionReady) return;
+
+    for (const msg of allMessages) {
+      // Skip optimistic messages — displayed via pendingPlaintext
+      if (msg.id.startsWith("optimistic_")) continue;
+      // Skip if already decrypted or decryption is in flight
+      if (decryptingIds.current.has(msg.id)) continue;
+      if (decryptedMap.has(msg.id)) continue;
+
+      decryptingIds.current.add(msg.id);
+
+      console.log(
+        "[ChatScreen] Attempting decrypt for chatId:",
+        chatId,
+        "messageId:",
+        msg.id,
+        "ciphertext prefix:",
+        msg.ciphertext?.slice(0, 50),
+      );
+
+      decryptReceived(msg.ciphertext)
+        .then((plaintext) => {
+          console.log(
+            "[ChatScreen] Decrypt",
+            plaintext !== null ? "success" : "failed (null)",
+            "for",
+            msg.id,
+            plaintext ? plaintext.slice(0, 50) : "",
+          );
+          setDecryptedMap((prev) => {
+            const next = new Map(prev);
+            next.set(msg.id, plaintext);
+            return next;
+          });
+        })
+        .catch((err) => {
+          console.error(
+            "[ChatScreen] Decrypt error for",
+            msg.id,
+            err?.message,
+            err?.stack,
+          );
+          setDecryptedMap((prev) => {
+            const next = new Map(prev);
+            next.set(msg.id, null);
+            return next;
+          });
+        });
+    }
+  }, [allMessages, encryptionReady, decryptReceived, chatId, decryptedMap]);
+
   // Mark chat as read on mount (local)
   useEffect(() => {
     markChatReadLocal(decoded);
@@ -324,11 +466,6 @@ export default function ChatScreen() {
       // optional — fail silently
     }
   }, [actor, actorFetching, decoded]);
-
-  const allMessages = useMemo(
-    () => [...olderMessages, ...messages],
-    [olderMessages, messages],
-  );
 
   // ─── Load older messages ──────────────────────────────────────────────────────
   const handleLoadOlder = useCallback(async () => {
@@ -403,29 +540,45 @@ export default function ChatScreen() {
     if (!plaintext || !actor || !myVoidId) return;
     setSending(true);
 
-    // Optimistic: add sent message to local list immediately
+    // Encrypt the message before sending
+    let ciphertextToSend = plaintext; // fallback: send plaintext if encryption not ready
+    try {
+      if (encryptionReady) {
+        ciphertextToSend = await encryptForSend(plaintext);
+      }
+    } catch (encErr) {
+      console.warn(
+        "[ChatScreen] encryptForSend failed, sending plaintext:",
+        encErr,
+      );
+    }
+
+    // Optimistic: add message to local list immediately
     const optimisticId = `optimistic_${Date.now()}`;
     const optimisticMsg: BackendMessage = {
       id: optimisticId,
       senderVoidId: myVoidId,
-      ciphertext: plaintext,
+      ciphertext: ciphertextToSend,
       timestamp: BigInt(Date.now()) * BigInt(1_000_000),
       messageType: MessageType.text,
     };
+    // Store plaintext for optimistic display
+    pendingPlaintext.current.set(optimisticId, plaintext);
     setMessages((prev) => [...prev, optimisticMsg]);
-    setMsgStatusMap((prev) => new Map(prev).set(plaintext, "sent"));
+    setMsgStatusMap((prev) => new Map(prev).set(optimisticId, "sent"));
+    setText("");
 
     try {
       await actor.postMessage(
         decoded,
-        plaintext,
+        ciphertextToSend,
         myVoidId,
         MessageType.text,
         null,
         null,
       );
 
-      setMsgStatusMap((prev) => new Map(prev).set(plaintext, "delivered"));
+      setMsgStatusMap((prev) => new Map(prev).set(optimisticId, "delivered"));
 
       // Notify recipients after successful send
       try {
@@ -434,27 +587,16 @@ export default function ChatScreen() {
       } catch (notifyErr) {
         console.warn("[ChatScreen] notifyRecipients failed:", notifyErr);
       }
-
-      const partnerName = partnerHandle
-        ? `@${partnerHandle.replace(/^@/, "")}`
-        : "someone";
-      sendLocalNotification(
-        `Message from ${myHandle ? `@${myHandle}` : "you"}`,
-        `${partnerName}: ${plaintext.slice(0, 50)}${
-          plaintext.length > 50 ? "…" : ""
-        }`,
-      );
-
-      setText("");
     } catch (err) {
       console.error("sendMessage error:", err);
       toast.error("Failed to send message. Try again.");
       // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      pendingPlaintext.current.delete(optimisticId);
     } finally {
       setSending(false);
     }
-  }, [text, actor, myVoidId, decoded, chatId, partnerHandle, myHandle]);
+  }, [text, actor, myVoidId, decoded, chatId, encryptionReady, encryptForSend]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -475,10 +617,27 @@ export default function ChatScreen() {
     .replace(":canister", "");
 
   const getMessageStatus = useCallback(
-    (ciphertext: string): MessageStatus => {
-      return msgStatusMap.get(ciphertext) ?? "sent";
+    (msgId: string): MessageStatus => {
+      return msgStatusMap.get(msgId) ?? "sent";
     },
     [msgStatusMap],
+  );
+
+  // ─── Resolve display text for a message ──────────────────────────────────────
+  const getDisplayText = useCallback(
+    (msg: BackendMessage): string | null | undefined => {
+      // Optimistic own messages: show plaintext immediately
+      if (msg.id.startsWith("optimistic_")) {
+        return pendingPlaintext.current.get(msg.id) ?? msg.ciphertext;
+      }
+      // Check decryptedMap: undefined if not yet decrypted, null if failed, string if success
+      if (decryptedMap.has(msg.id)) {
+        return decryptedMap.get(msg.id);
+      }
+      // Not yet decrypted — shimmer
+      return undefined;
+    },
+    [decryptedMap],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -515,7 +674,7 @@ export default function ChatScreen() {
           )}
         </div>
 
-        {/* E2EE lock icon — decorative */}
+        {/* E2EE lock icon */}
         <div
           className="shrink-0 relative group flex items-center gap-1.5 cursor-help"
           data-ocid="chat.e2ee.tooltip"
@@ -541,7 +700,7 @@ export default function ChatScreen() {
         </div>
       </div>
 
-      {/* E2EE banner — decorative */}
+      {/* E2EE banner */}
       <div className="shrink-0 px-4 py-2 flex items-center gap-2 bg-green-950/30 border-b border-green-500/15">
         <Lock size={12} className="text-green-400 shrink-0" />
         <span className="text-green-400/80 text-xs">
@@ -588,7 +747,7 @@ export default function ChatScreen() {
               className="flex justify-center py-8"
             >
               <div className="text-white/30 text-sm animate-pulse">
-                🌌 Loading messages...
+                🌌 Loading messages…
               </div>
             </div>
           )}
@@ -616,16 +775,25 @@ export default function ChatScreen() {
                 ? `@${partnerHandle.replace(/^@/, "")}`
                 : null;
 
+            console.log(
+              "[ChatScreen] Rendering message:",
+              msg.id,
+              "ciphertext:",
+              msg.ciphertext?.slice(0, 50),
+              "displayText:",
+              getDisplayText(msg),
+            );
+
             return (
               <ChatBubble
                 key={msg.id}
                 isOwn={isOwn}
                 senderHandle={senderHandle}
                 senderVoidId={msg.senderVoidId}
-                text={msg.ciphertext}
+                text={getDisplayText(msg)}
                 timestamp={msg.timestamp}
                 index={idx + 1}
-                status={isOwn ? getMessageStatus(msg.ciphertext) : undefined}
+                status={isOwn ? getMessageStatus(msg.id) : undefined}
               />
             );
           })}

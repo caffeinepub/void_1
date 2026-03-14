@@ -134,6 +134,39 @@ export function sendLocalNotification(title: string, body: string): void {
   }
 }
 
+/**
+ * Show a local browser notification for a new incoming DM.
+ * Uses the real sender's Cosmic Handle (or VOID ID fallback) as the title.
+ */
+export function sendDMNotification(senderName: string): void {
+  const title = `New message from ${senderName}`;
+  const body = "Tap to open VOID";
+  const icon = "/assets/generated/void-logo.dim_256x256.png";
+
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          reg.showNotification(title, {
+            body,
+            icon,
+            badge: icon,
+            tag: "void-dm",
+          });
+        })
+        .catch(() => {
+          new Notification(title, { body, icon });
+        });
+    } else {
+      new Notification(title, { body, icon });
+    }
+  } catch {
+    // fail silently
+  }
+}
+
 // ─── Preference Persistence ───────────────────────────────────────────────────
 
 /** Persist whether notifications are enabled in localStorage */
