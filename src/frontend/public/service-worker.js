@@ -46,8 +46,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body,
-    icon: "/assets/generated/void-logo.dim_256x256.png",
-    badge: "/assets/generated/void-logo.dim_256x256.png",
+    icon: "/assets/uploads/void-2.o-1.png",
+    badge: "/assets/uploads/void-2.o-1.png",
     tag: "void-message",
     renotify: true,
     vibrate: [200, 100, 200],

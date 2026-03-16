@@ -117,8 +117,8 @@ export function sendLocalNotification(title: string, body: string): void {
         .then((reg) => {
           reg.showNotification(title, {
             body,
-            icon: "/assets/generated/void-logo.dim_256x256.png",
-            badge: "/assets/generated/void-logo.dim_256x256.png",
+            icon: "/assets/uploads/void-2.o-1.png",
+            badge: "/assets/uploads/void-2.o-1.png",
             tag: "void-message",
           });
         })
@@ -141,7 +141,7 @@ export function sendLocalNotification(title: string, body: string): void {
 export function sendDMNotification(senderName: string): void {
   const title = `New message from ${senderName}`;
   const body = "Tap to open VOID";
-  const icon = "/assets/generated/void-logo.dim_256x256.png";
+  const icon = "/assets/uploads/void-2.o-1.png";
 
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
@@ -173,6 +173,40 @@ export function sendDMNotification(senderName: string): void {
 export function setNotificationEnabled(enabled: boolean): void {
   try {
     localStorage.setItem(NOTIFICATION_ENABLED_KEY, JSON.stringify(enabled));
+  } catch {
+    // fail silently
+  }
+}
+
+/**
+ * Show a notification with unread count in the title.
+ * Called by Messages.tsx when total unread count rises.
+ */
+export function showNotification(
+  senderName: string,
+  unreadCount: number,
+): void {
+  const title = `New message (${unreadCount})`;
+  const body = `from ${senderName || "VOID"}`;
+  const icon = "/assets/uploads/void-2.o-1.png";
+
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          reg.showNotification(title, {
+            body,
+            icon,
+            badge: icon,
+            tag: "void-unread",
+          });
+        })
+        .catch(() => new Notification(title, { body, icon }));
+    } else {
+      new Notification(title, { body, icon });
+    }
   } catch {
     // fail silently
   }

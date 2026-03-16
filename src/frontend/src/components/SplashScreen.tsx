@@ -61,7 +61,7 @@ export default function SplashScreen() {
           style={{ animation: "logoFloat 4s ease-in-out infinite" }}
         >
           <img
-            src="/assets/generated/void-logo.dim_256x256.png"
+            src="/assets/uploads/void-2.o-1.png"
             alt="VOID"
             className="w-28 h-28 mx-auto drop-shadow-[0_0_40px_rgba(255,215,0,0.7)]"
           />

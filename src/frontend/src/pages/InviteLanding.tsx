@@ -87,7 +87,7 @@ export default function InviteLanding() {
           {/* Logo */}
           <div className="flex flex-col items-center gap-3">
             <img
-              src="/assets/generated/void-logo.dim_256x256.png"
+              src="/assets/uploads/void-2.o-1.png"
               alt="VOID"
               className="w-16 h-16 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]"
             />

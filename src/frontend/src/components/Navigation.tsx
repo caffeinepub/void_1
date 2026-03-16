@@ -122,12 +122,11 @@ export default function Navigation() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [totalUnread, setTotalUnread] = useState(() => getStoredTotalUnread());
 
-  // Poll unread count from localStorage every 2.5s so badge stays fresh
+  // Update badge instantly whenever incrementUnread fires the custom event
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTotalUnread(getStoredTotalUnread());
-    }, 2500);
-    return () => clearInterval(interval);
+    const update = () => setTotalUnread(getStoredTotalUnread());
+    window.addEventListener("void_unread_change", update);
+    return () => window.removeEventListener("void_unread_change", update);
   }, []);
 
   const currentPath = routerState.location.pathname;
@@ -165,7 +164,7 @@ export default function Navigation() {
         <div className="p-6 border-b border-void-gold/10">
           <div className="flex items-center gap-3">
             <img
-              src="/assets/generated/void-logo.dim_256x256.png"
+              src="/assets/uploads/void-2.o-1.png"
               alt="VOID"
               className="w-8 h-8 drop-shadow-[0_0_8px_rgba(255,215,0,0.5)]"
             />
@@ -260,7 +259,7 @@ export default function Navigation() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-void-black/95 border-b border-void-gold/10 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <img
-            src="/assets/generated/void-logo.dim_256x256.png"
+            src="/assets/uploads/void-2.o-1.png"
             alt="VOID"
             className="w-6 h-6 drop-shadow-[0_0_6px_rgba(255,215,0,0.5)]"
           />

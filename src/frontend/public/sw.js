@@ -31,8 +31,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'VOID';
   const options = {
     body: data.body || 'New cosmic transmission awaits',
-    icon: '/assets/generated/void-logo.dim_256x256.png',
-    badge: '/assets/generated/void-logo.dim_256x256.png',
+    icon: '/assets/uploads/void-2.o-1.png',
+    badge: '/assets/uploads/void-2.o-1.png',
     tag: data.tag || 'void-notification',
     renotify: true,
     data: data.url || '/dms',

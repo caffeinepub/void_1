@@ -42,6 +42,10 @@ import {
 } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import {
+  isNotificationEnabled,
+  showNotification,
+} from "../lib/NotificationService";
+import {
   type KnownUser,
   getCachedHandle,
   registerKnownUser,
@@ -73,8 +77,20 @@ export function incrementUnread(chatId: string): void {
     localStorage.setItem(`void_unread_${chatId}`, String(next));
     const total = getStoredTotalUnread();
     localStorage.setItem("void_total_unread", String(total + 1));
+    // Store last-message timestamp for sort order
+    localStorage.setItem(`void_last_msg_${chatId}`, String(Date.now()));
+    // Broadcast so Navigation and DM list update immediately
+    window.dispatchEvent(new CustomEvent("void_unread_change"));
   } catch {
     // fail silently
+  }
+}
+
+export function getLastMessageTime(chatId: string): number {
+  try {
+    return Number(localStorage.getItem(`void_last_msg_${chatId}`) ?? 0);
+  } catch {
+    return 0;
   }
 }
 
@@ -671,7 +687,14 @@ export default function Messages() {
     voidId ?? "",
   );
 
-  const dmChannels = dms.filter((d) => d.__kind__ === "dm");
+  const dmChannels = dms
+    .filter((d) => d.__kind__ === "dm")
+    .slice()
+    .sort((a, b) => {
+      const tA = getLastMessageTime(getChannelId(a));
+      const tB = getLastMessageTime(getChannelId(b));
+      return tB - tA; // descending: most recent first
+    });
 
   // Determine if user needs to set a cosmic handle
   const needsHandle =
@@ -681,6 +704,8 @@ export default function Messages() {
   // Load unread counts from localStorage on mount and periodically
   // biome-ignore lint/correctness/useExhaustiveDependencies: dmChannels is unstable; length is sufficient
   useEffect(() => {
+    let prevTotal = getStoredTotalUnread();
+
     const load = () => {
       const map: Record<string, number> = {};
       for (const dm of dmChannels) {
@@ -688,10 +713,23 @@ export default function Messages() {
         map[id] = getUnreadCount(id);
       }
       setUnreadMap(map);
+
+      const newTotal = getStoredTotalUnread();
+      if (newTotal > prevTotal && isNotificationEnabled()) {
+        showNotification("VOID", newTotal);
+      }
+      prevTotal = newTotal;
     };
+
     load();
+
+    // React to events fired by incrementUnread (from ChatScreen polling)
+    window.addEventListener("void_unread_change", load);
     const interval = setInterval(load, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener("void_unread_change", load);
+      clearInterval(interval);
+    };
   }, [dmChannels.length]);
 
   const handleNavigateToChat = useCallback(
