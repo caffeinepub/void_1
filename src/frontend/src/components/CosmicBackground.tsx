@@ -179,28 +179,44 @@ function ShootingStars() {
 interface DustParticle {
   id: string;
   x: number; // % from left
+  y: number; // % from top
   size: number; // px
   color: string; // gold or purple
   opacity: number;
-  duration: number; // seconds for full float
+  duration: number; // seconds for full roam cycle
   delay: number; // animation delay
-  drift: number; // horizontal drift px
+  rx1: number;
+  ry1: number;
+  rx2: number;
+  ry2: number;
+  rx3: number;
+  ry3: number;
 }
 
 function generateDustParticles(count: number): DustParticle[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `dust-${i}`,
     x: seededRandom(i * 31 + 7) * 100,
-    size: 2 + seededRandom(i * 17 + 3) * 2.5,
+    y: seededRandom(i * 13 + 2) * 100,
+    size: 3 + seededRandom(i * 17 + 3) * 4,
     color: seededRandom(i * 23 + 11) < 0.75 ? "#FFD700" : "#8e2de2",
-    opacity: 0.3 + seededRandom(i * 41 + 5) * 0.35,
-    duration: 10 + seededRandom(i * 37 + 9) * 14,
-    delay: seededRandom(i * 29 + 13) * -20, // negative = start mid-animation
-    drift: (seededRandom(i * 43 + 7) - 0.5) * 80,
+    opacity: 0.35 + seededRandom(i * 41 + 5) * 0.4,
+    duration: 20 + seededRandom(i * 37 + 9) * 20,
+    delay: seededRandom(i * 29 + 13) * -30,
+    rx1: (seededRandom(i * 43 + 1) - 0.5) * 120,
+    ry1: (seededRandom(i * 47 + 2) - 0.5) * 120,
+    rx2: (seededRandom(i * 53 + 3) - 0.5) * 120,
+    ry2: (seededRandom(i * 59 + 4) - 0.5) * 120,
+    rx3: (seededRandom(i * 61 + 5) - 0.5) * 120,
+    ry3: (seededRandom(i * 67 + 6) - 0.5) * 120,
   }));
 }
 
 const DUST_PARTICLES = generateDustParticles(120);
+
+// 4-pointed cross-star clip path
+const STAR_CLIP =
+  "polygon(50% 0%, 55% 45%, 100% 50%, 55% 55%, 50% 100%, 45% 55%, 0% 50%, 45% 45%)";
 
 function StarDustLayer() {
   return (
@@ -219,16 +235,21 @@ function StarDustLayer() {
           style={{
             position: "absolute",
             left: `${p.x}%`,
-            bottom: "-10px",
+            top: `${p.y}%`,
             width: `${p.size}px`,
             height: `${p.size}px`,
-            borderRadius: "50%",
+            clipPath: STAR_CLIP,
             backgroundColor: p.color,
             boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
-            ["--dust-opacity" as string]: p.opacity.toString(),
-            ["--dust-drift" as string]: `${p.drift}px`,
-            animation: `starDustFloat ${p.duration}s linear ${p.delay}s infinite`,
-            willChange: "transform, opacity",
+            opacity: p.opacity,
+            ["--rx1" as string]: `${p.rx1}px`,
+            ["--ry1" as string]: `${p.ry1}px`,
+            ["--rx2" as string]: `${p.rx2}px`,
+            ["--ry2" as string]: `${p.ry2}px`,
+            ["--rx3" as string]: `${p.rx3}px`,
+            ["--ry3" as string]: `${p.ry3}px`,
+            animation: `starDriftRoam ${p.duration}s ease-in-out ${p.delay}s infinite alternate`,
+            willChange: "transform",
           }}
         />
       ))}

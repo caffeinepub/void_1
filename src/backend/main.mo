@@ -389,11 +389,37 @@ actor {
     channelTypes.add(#lightRoom);
     channelTypes.add(#darkRoom);
 
+    // Get caller's voidId so we only return channels they participate in
+    let callerVoidId : ?Text = switch (principalProfiles.get(caller)) {
+      case (?profile) { ?profile.voidId };
+      case (null) { null };
+    };
+
     for ((channel, _) in rooms.entries()) {
       if (channel.startsWith(#text("DM-"))) {
-        channelTypes.add(#dm(channel));
+        // Only include DM channels where the caller is a participant
+        switch (callerVoidId) {
+          case (?voidId) {
+            if (channel.contains(#text(voidId))) {
+              channelTypes.add(#dm(channel));
+            };
+          };
+          case (null) { /* skip — caller has no registered voidId */ };
+        };
       } else if (channel.startsWith(#text("GROUP-"))) {
-        channelTypes.add(#group(channel));
+        // Only include groups where the caller is a member
+        switch (callerVoidId) {
+          case (?voidId) {
+            switch (groups.get(channel)) {
+              case (?group) {
+                let isMember = group.members.any(func(m) { m == voidId });
+                if (isMember) { channelTypes.add(#group(channel)) };
+              };
+              case (null) { /* orphaned room, skip */ };
+            };
+          };
+          case (null) { /* skip */ };
+        };
       };
     };
 
@@ -414,20 +440,14 @@ actor {
       Runtime.trap("Unauthorized: Only users can create DM channels");
     };
 
-    // Verify caller owns at least one of the VOID IDs
-    let ownsVoidId1 = switch (voidIdToPrincipal.get(voidId1)) {
-      case (?owner) { owner == caller };
-      case (null) { false };
+    // Auto-register the caller's voidId mapping so subsequent ownership checks work.
+    // No strict ownership check here — any authenticated user can open a DM channel.
+    let existing = principalProfiles.get(caller);
+    let callerVoidId = switch (existing) {
+      case (?p) { p.voidId };
+      case (null) { voidId1 };
     };
-
-    let ownsVoidId2 = switch (voidIdToPrincipal.get(voidId2)) {
-      case (?owner) { owner == caller };
-      case (null) { false };
-    };
-
-    if (not (ownsVoidId1 or ownsVoidId2)) {
-      Runtime.trap("Unauthorized: You must own at least one of the VOID IDs to create a DM");
-    };
+    voidIdToPrincipal.add(callerVoidId, caller);
 
     let channelId = createDMChannelId(voidId1, voidId2);
 

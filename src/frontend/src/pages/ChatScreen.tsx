@@ -17,7 +17,7 @@ import { useGetCosmicHandle } from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import { normalizeDMChatId } from "../lib/E2EEHelper";
 import { sendDMNotification } from "../lib/NotificationService";
-import { markChatReadLocal } from "./Messages";
+import { incrementUnread, markChatReadLocal } from "./Messages";
 
 // ─── Emoji set ────────────────────────────────────────────────────────────────
 const EMOJI_SET = [
@@ -353,6 +353,7 @@ export default function ChatScreen() {
                     ? `@void_${msg.senderVoidId.slice(-8)}`
                     : "someone";
                 sendDMNotification(senderName);
+                incrementUnread(chatId, msg.timestamp);
                 break; // one notification per poll cycle is enough
               }
             }

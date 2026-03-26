@@ -23,7 +23,14 @@ import {
   Users,
   X,
 } from "lucide-react";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import type { ChannelType } from "../backend";
 import AuthModal from "../components/AuthModal";
@@ -70,15 +77,17 @@ export function getStoredTotalUnread(): number {
   }
 }
 
-export function incrementUnread(chatId: string): void {
+export function incrementUnread(chatId: string, timestamp?: bigint): void {
   try {
     const current = getUnreadCount(chatId);
     const next = current + 1;
     localStorage.setItem(`void_unread_${chatId}`, String(next));
     const total = getStoredTotalUnread();
     localStorage.setItem("void_total_unread", String(total + 1));
-    // Store last-message timestamp for sort order
-    localStorage.setItem(`void_last_msg_${chatId}`, String(Date.now()));
+    // Use real message timestamp (BigInt nanoseconds → ms) when available
+    const ms =
+      timestamp !== undefined ? Number(timestamp / 1_000_000n) : Date.now();
+    localStorage.setItem(`void_last_msg_${chatId}`, String(ms));
     // Broadcast so Navigation and DM list update immediately
     window.dispatchEvent(new CustomEvent("void_unread_change"));
   } catch {
@@ -682,43 +691,58 @@ export default function Messages() {
     null,
   );
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  // Incremented on void_unread_change to force dmChannels useMemo to re-sort
+  const [sortVersion, setSortVersion] = useState(0);
+  // Persist prevTotal across renders without causing re-renders
+  const prevTotalRef = useRef(getStoredTotalUnread());
 
   const { data: groups = [], isLoading: groupsLoading } = useGetGroupsForVoidId(
     voidId ?? "",
   );
 
-  const dmChannels = dms
-    .filter((d) => d.__kind__ === "dm")
-    .slice()
-    .sort((a, b) => {
-      const tA = getLastMessageTime(getChannelId(a));
-      const tB = getLastMessageTime(getChannelId(b));
-      return tB - tA; // descending: most recent first
-    });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sortVersion intentionally forces re-sort
+  const dmChannels = useMemo(() => {
+    return (
+      dms
+        .filter((d) => d.__kind__ === "dm")
+        // Privacy filter: only show DMs that include the current user's voidId.
+        // This prevents user C from seeing A↔B conversations when they log in.
+        .filter((d) => {
+          if (!voidId) return false;
+          const id = getChannelId(d);
+          return id.includes(voidId);
+        })
+        .slice()
+        .sort((a, b) => {
+          const tA = getLastMessageTime(getChannelId(a));
+          const tB = getLastMessageTime(getChannelId(b));
+          return tB - tA; // descending: most recent first
+        })
+    );
+  }, [dms, sortVersion, voidId]);
 
   // Determine if user needs to set a cosmic handle
   const needsHandle =
     !!userProfile &&
     (!userProfile.cosmicHandle || userProfile.cosmicHandle.trim() === "");
 
-  // Load unread counts from localStorage on mount and periodically
-  // biome-ignore lint/correctness/useExhaustiveDependencies: dmChannels is unstable; length is sufficient
+  // Load unread counts from localStorage on mount and periodically.
+  // Uses prevTotalRef so the notification check is correct across renders.
   useEffect(() => {
-    let prevTotal = getStoredTotalUnread();
-
     const load = () => {
       const map: Record<string, number> = {};
-      for (const dm of dmChannels) {
+      for (const dm of dms.filter((d) => d.__kind__ === "dm")) {
         const id = getChannelId(dm);
         map[id] = getUnreadCount(id);
       }
       setUnreadMap(map);
+      setSortVersion((v) => v + 1); // force dmChannels to re-sort
 
       const newTotal = getStoredTotalUnread();
-      if (newTotal > prevTotal && isNotificationEnabled()) {
+      if (newTotal > prevTotalRef.current && isNotificationEnabled()) {
         showNotification("VOID", newTotal);
       }
-      prevTotal = newTotal;
+      prevTotalRef.current = newTotal;
     };
 
     load();
@@ -730,7 +754,7 @@ export default function Messages() {
       window.removeEventListener("void_unread_change", load);
       clearInterval(interval);
     };
-  }, [dmChannels.length]);
+  }, [dms]);
 
   const handleNavigateToChat = useCallback(
     (channelId: string) => {
