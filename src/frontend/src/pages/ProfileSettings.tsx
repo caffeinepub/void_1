@@ -32,7 +32,6 @@ import {
   isNotificationEnabled,
   requestNotificationPermission,
   setNotificationEnabled,
-  subscribeToVAPID,
 } from "../lib/NotificationService";
 import { getKeyFingerprint } from "../lib/crypto";
 import { resetAllChatData } from "../lib/resetChatData";
@@ -268,17 +267,9 @@ export default function ProfileSettings() {
         );
         return;
       }
-      const subscription = await subscribeToVAPID();
-      if (subscription) {
-        toast.success("Push notifications enabled", {
-          description: "You'll receive alerts for new messages.",
-        });
-      } else {
-        toast.success("Notifications enabled", {
-          description:
-            "Browser push not supported — local alerts will be used.",
-        });
-      }
+      toast.success("Notifications enabled", {
+        description: "You'll be alerted for new messages.",
+      });
     } else {
       toast.success("Notifications disabled");
     }
