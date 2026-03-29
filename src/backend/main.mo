@@ -934,6 +934,10 @@ actor {
     };
   };
 
+  public query ({ caller }) func getAllUserProfiles() : async [UserProfile] {
+    principalProfiles.values().toArray()
+  };
+
   public query func getE2EEPublicKey(voidId : Text) : async ?Blob {
     switch (voidIdToPrincipal.get(voidId)) {
       case (null) { null };

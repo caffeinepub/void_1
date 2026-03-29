@@ -100,6 +100,7 @@ export interface backendInterface {
     deactivateOffering(offeringId: string, callerVoidId: string): Promise<void>;
     generateInviteToken(voidId: string): Promise<string>;
     getAllGroups(): Promise<Array<GroupInfo>>;
+    getAllUserProfiles(): Promise<Array<UserProfile>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCosmicHandle(voidId: string): Promise<string | null>;

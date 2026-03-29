@@ -200,6 +200,7 @@ export interface backendInterface {
     deactivateOffering(offeringId: string, callerVoidId: string): Promise<void>;
     generateInviteToken(voidId: string): Promise<string>;
     getAllGroups(): Promise<Array<GroupInfo>>;
+    getAllUserProfiles(): Promise<Array<UserProfile>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCosmicHandle(voidId: string): Promise<string | null>;
@@ -461,6 +462,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllGroups();
+            return result;
+        }
+    }
+    async getAllUserProfiles(): Promise<Array<UserProfile>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllUserProfiles();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllUserProfiles();
             return result;
         }
     }

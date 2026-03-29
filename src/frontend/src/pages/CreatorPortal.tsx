@@ -16,7 +16,7 @@ import {
  * Admin-only portal for managing VOID: daily reflections, user directory,
  * message pinning, content moderation, newsletter.
  */
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import VoidAvatar from "../components/VoidAvatar";
 import {
@@ -40,7 +40,7 @@ type PortalTab =
   | "moderation"
   | "newsletter";
 
-const TABS: { id: PortalTab; label: string; icon: React.ReactNode }[] = [
+const TABS: { id: PortalTab; label: string; icon: ReactNode }[] = [
   { id: "identity", label: "Identity", icon: <Crown size={14} /> },
   { id: "reflection", label: "Reflection", icon: <Radio size={14} /> },
   { id: "users", label: "Travelers", icon: <Users size={14} /> },
@@ -254,71 +254,6 @@ function ReflectionSection() {
   );
 }
 
-// ─── Section: User Directory ──────────────────────────────────────────────────
-function UsersSection() {
-  const { data: profiles = [], isLoading } = useGetAllUserProfiles();
-
-  return (
-    <div className="space-y-4 nebula-fade-in">
-      <div className="flex items-center gap-3">
-        <Users size={14} className="text-void-gold/60" />
-        <span className="text-void-gold/60 text-xs uppercase tracking-widest">
-          Travelers in the Void
-        </span>
-        <span className="ml-auto px-2 py-0.5 border border-void-gold/20 bg-void-gold/8 text-void-gold text-xs font-mono">
-          {isLoading ? "—" : profiles.length}
-        </span>
-      </div>
-
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <div className="flex items-center gap-2 text-white/30 text-sm">
-            <Loader2 size={14} className="animate-spin" />
-            Reading the void registry...
-          </div>
-        </div>
-      )}
-
-      {!isLoading && profiles.length === 0 && (
-        <div className="flex flex-col items-center py-12 text-center">
-          <p className="text-white/20 text-sm">
-            No travelers have entered the void yet.
-          </p>
-        </div>
-      )}
-
-      {!isLoading && profiles.length > 0 && (
-        <div
-          data-ocid="creator.list"
-          className="space-y-1 max-h-[480px] overflow-y-auto pr-1"
-        >
-          {profiles.map((profile) => (
-            <div
-              key={profile.voidId}
-              className="flex items-center gap-3 px-3 py-3 border border-void-gold/8 bg-void-gold/3 hover:bg-void-gold/6 transition-colors"
-            >
-              <VoidAvatar voidId={profile.voidId} size="sm" />
-              <div className="min-w-0 flex-1">
-                {profile.cosmicHandle && (
-                  <p className="text-white/80 text-sm font-medium truncate">
-                    {profile.cosmicHandle}
-                  </p>
-                )}
-                <p className="text-void-gold/40 text-xs font-mono truncate">
-                  {profile.voidId}
-                </p>
-              </div>
-              <span className="shrink-0 text-void-gold/20 text-xs font-mono">
-                —
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Section: Message Pinning ─────────────────────────────────────────────────
 type PinChannel = "lightRoom" | "darkRoom";
 
@@ -470,38 +405,100 @@ function PinningSection() {
   );
 }
 
+// ─── Section: User Directory ──────────────────────────────────────────────────
+function UsersSection() {
+  const { data: profiles = [], isLoading } = useGetAllUserProfiles();
+
+  return (
+    <div className="space-y-4 nebula-fade-in">
+      <div className="flex items-center gap-3">
+        <Users size={14} className="text-void-gold/60" />
+        <span className="text-void-gold/60 text-xs uppercase tracking-widest">
+          Travelers in the Void
+        </span>
+        {!isLoading && (
+          <span
+            className="ml-auto text-xs font-mono px-2 py-0.5 rounded-full"
+            style={{
+              background: "rgba(255,215,0,0.1)",
+              color: "rgba(255,215,0,0.7)",
+              border: "1px solid rgba(255,215,0,0.2)",
+            }}
+          >
+            {profiles.length} travelers
+          </span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 gap-3">
+          <div
+            className="w-4 h-4 rounded-full animate-spin"
+            style={{
+              border: "2px solid rgba(255,215,0,0.3)",
+              borderTopColor: "rgba(255,215,0,0.9)",
+            }}
+          />
+          <span className="text-white/30 text-xs">Scanning the void...</span>
+        </div>
+      ) : profiles.length === 0 ? (
+        <div
+          className="flex flex-col items-center py-12 text-center gap-3"
+          style={{
+            border: "1px solid rgba(255,215,0,0.08)",
+            background: "rgba(255,215,0,0.02)",
+          }}
+        >
+          <Users size={24} className="text-void-gold/20" />
+          <p className="text-white/30 text-sm">No travelers yet</p>
+        </div>
+      ) : (
+        <div
+          className="divide-y rounded-lg overflow-hidden"
+          style={{
+            border: "1px solid rgba(255,215,0,0.1)",
+            background: "rgba(0,0,0,0.4)",
+          }}
+        >
+          {profiles.map((profile, i) => (
+            <div
+              key={profile.voidId || i}
+              className="flex items-center gap-3 px-4 py-3"
+              style={{ borderBottom: "1px solid rgba(255,215,0,0.06)" }}
+            >
+              <VoidAvatar voidId={profile.voidId} size="sm" />
+              <div className="flex-1 min-w-0">
+                {profile.cosmicHandle ? (
+                  <div
+                    className="font-semibold text-sm truncate"
+                    style={{ color: "#fbbf24" }}
+                  >
+                    @{profile.cosmicHandle}
+                  </div>
+                ) : (
+                  <div className="text-white/40 text-sm truncate italic">
+                    No handle
+                  </div>
+                )}
+                <div className="text-white/30 text-xs font-mono truncate">
+                  {profile.voidId}
+                </div>
+              </div>
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: "rgba(74,222,128,0.6)" }}
+                title="Registered"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Section: Content Moderation ──────────────────────────────────────────────
 function ModerationSection() {
-  const { data: profiles = [], isLoading } = useGetAllUserProfiles();
-  const [bannedIds, setBannedIds] = useState<string[]>([]);
-
-  // Load locally banned IDs
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("void_banned_admin");
-      if (raw) setBannedIds(JSON.parse(raw));
-    } catch {
-      // fail silently
-    }
-  }, []);
-
-  const handleBan = (voidId: string, handle?: string) => {
-    const displayName = handle || voidId.slice(0, 20);
-    if (!window.confirm(`Remove ${displayName} from the void?`)) return;
-    try {
-      const updated = [...bannedIds, voidId];
-      setBannedIds(updated);
-      localStorage.setItem("void_banned_admin", JSON.stringify(updated));
-      toast.success("Traveler removed locally", {
-        description: "Full admin canister removal coming in a future update.",
-      });
-    } catch {
-      toast.error("Could not update local ban list");
-    }
-  };
-
-  const visibleProfiles = profiles.filter((p) => !bannedIds.includes(p.voidId));
-
   return (
     <div className="space-y-6 nebula-fade-in">
       <div>
@@ -511,98 +508,42 @@ function ModerationSection() {
             Content Moderation
           </span>
         </div>
+      </div>
+      <div
+        className="flex flex-col items-center py-16 text-center gap-4"
+        style={{
+          border: "1px solid rgba(255,215,0,0.08)",
+          background: "rgba(255,215,0,0.02)",
+        }}
+      >
+        <Shield size={28} className="text-void-gold/20" />
+        <div>
+          <p className="text-white/40 text-sm font-medium mb-1">
+            Full moderation coming soon
+          </p>
+          <p className="text-white/20 text-xs leading-relaxed max-w-xs">
+            Real user bans and message deletion require a dedicated admin
+            canister function. This will be wired in a future update.
+          </p>
+        </div>
         <div
-          className="px-3 py-2 mt-2 text-xs"
+          className="px-4 py-2 text-xs"
           style={{
             background: "rgba(255,215,0,0.04)",
             border: "1px solid rgba(255,215,0,0.1)",
-            color: "rgba(255,255,255,0.35)",
+            color: "rgba(255,255,255,0.30)",
           }}
         >
-          ⚠️ Moderation actions are local until full admin canister is deployed.
+          ⚠️ No backend moderation functions exist yet — actions here would have
+          no effect.
         </div>
       </div>
-
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <div className="flex items-center gap-2 text-white/30 text-sm">
-            <Loader2 size={14} className="animate-spin" />
-            Loading traveler registry...
-          </div>
-        </div>
-      )}
-
-      {!isLoading && visibleProfiles.length === 0 && (
-        <div
-          data-ocid="creator.empty_state"
-          className="text-center py-12 text-white/20 text-sm"
-        >
-          No travelers to moderate.
-        </div>
-      )}
-
-      {!isLoading && visibleProfiles.length > 0 && (
-        <div
-          data-ocid="creator.list"
-          className="space-y-2 max-h-[480px] overflow-y-auto pr-1"
-        >
-          {visibleProfiles.map((profile, idx) => (
-            <div
-              key={profile.voidId}
-              data-ocid={`creator.row.${idx + 1}`}
-              className="flex items-center gap-3 px-3 py-3 border border-white/8 bg-white/2"
-            >
-              <VoidAvatar voidId={profile.voidId} size="sm" />
-              <div className="min-w-0 flex-1">
-                {profile.cosmicHandle && (
-                  <p className="text-void-gold font-bold text-sm truncate">
-                    @{profile.cosmicHandle.replace(/^@/, "")}
-                  </p>
-                )}
-                <p className="text-white/30 text-xs font-mono truncate">
-                  {profile.voidId}
-                </p>
-                <p className="text-white/20 text-xs mt-0.5">Last active: —</p>
-              </div>
-              <button
-                type="button"
-                data-ocid={`creator.delete_button.${idx + 1}`}
-                onClick={() =>
-                  handleBan(profile.voidId, profile.cosmicHandle ?? undefined)
-                }
-                className="shrink-0 px-2.5 py-1.5 text-xs border border-red-500/25 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors tracking-wider"
-              >
-                Ban
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 // ─── Section: Newsletter ───────────────────────────────────────────────────────
-const NEWSLETTER_MAX = 500;
-
 function NewsletterSection() {
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-
-  const handleSend = async () => {
-    if (!message.trim()) {
-      toast.error("Newsletter message cannot be empty");
-      return;
-    }
-    setSending(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setSending(false);
-    setMessage("");
-    toast.success("Newsletter transmitted to opted-in travelers", {
-      description: "Only sent to users who enabled notifications in Profile.",
-    });
-  };
-
   return (
     <div className="space-y-6 nebula-fade-in">
       <div>
@@ -619,62 +560,34 @@ function NewsletterSection() {
       </div>
 
       <div
-        className="flex items-center gap-2 px-3 py-2 text-xs"
+        className="flex flex-col items-center py-16 text-center gap-4"
         style={{
-          background: "rgba(142,45,226,0.06)",
-          border: "1px solid rgba(142,45,226,0.15)",
-          color: "rgba(178,102,255,0.6)",
+          border: "1px solid rgba(142,45,226,0.12)",
+          background: "rgba(142,45,226,0.03)",
         }}
       >
-        <Users size={12} />
-        Opted-in users: —{" "}
-        <span className="text-white/20">
-          (tracked when notification system is live)
-        </span>
-      </div>
-
-      <div>
-        <label
-          htmlFor="newsletter-message"
-          className="block text-void-gold/50 text-xs uppercase tracking-widest mb-2"
-        >
-          Message to Travelers
-        </label>
-        <div className="relative">
-          <textarea
-            id="newsletter-message"
-            data-ocid="creator.newsletter.textarea"
-            value={message}
-            onChange={(e) =>
-              setMessage(e.target.value.slice(0, NEWSLETTER_MAX))
-            }
-            rows={5}
-            placeholder="Share a cosmic message with the community..."
-            className="w-full bg-void-black/60 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/60 transition-colors resize-none leading-relaxed"
-          />
-          <span className="absolute bottom-2 right-3 text-white/20 text-xs font-mono">
-            {message.length}/{NEWSLETTER_MAX}
-          </span>
+        <Mail size={28} className="text-purple-400/30" />
+        <div>
+          <p className="text-white/40 text-sm font-medium mb-1">
+            Newsletter delivery coming soon
+          </p>
+          <p className="text-white/20 text-xs leading-relaxed max-w-xs">
+            Sending newsletters requires a server-side VAPID push
+            infrastructure. The backend endpoint and push server are not yet
+            active.
+          </p>
         </div>
-        <p className="text-white/20 text-xs mt-1">
-          Only sent to users who enabled notifications in their Profile
-        </p>
+        <div
+          className="px-4 py-2 text-xs"
+          style={{
+            background: "rgba(142,45,226,0.06)",
+            border: "1px solid rgba(142,45,226,0.15)",
+            color: "rgba(178,102,255,0.5)",
+          }}
+        >
+          No messages will be sent until the push server is live.
+        </div>
       </div>
-
-      <button
-        type="button"
-        data-ocid="creator.submit_button"
-        onClick={handleSend}
-        disabled={sending || !message.trim()}
-        className="void-btn-primary w-full py-3 text-sm tracking-widest uppercase flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        {sending ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          <Mail size={16} />
-        )}
-        Send Newsletter
-      </button>
     </div>
   );
 }

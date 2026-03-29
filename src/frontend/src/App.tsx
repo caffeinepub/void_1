@@ -19,8 +19,6 @@ import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
 import ChatScreen from "./pages/ChatScreen";
 import CreatorPortal from "./pages/CreatorPortal";
-import DMList from "./pages/DMList";
-import DMView from "./pages/DMView";
 import DarkRoom from "./pages/DarkRoom";
 import GroupView from "./pages/GroupView";
 import InviteLanding from "./pages/InviteLanding";

@@ -14,6 +14,7 @@ import { triggerGoldDust } from "../lib/goldDustAnimation";
 
 // ─── Emoji set ────────────────────────────────────────────────────────────────
 const EMOJI_SET = [
+  // Cosmic & Spiritual
   "✨",
   "🌑",
   "☀️",
@@ -44,6 +45,90 @@ const EMOJI_SET = [
   "☯️",
   "🌀",
   "🔯",
+  // Emotions & Expressions
+  "😊",
+  "😂",
+  "🥰",
+  "😍",
+  "🤩",
+  "😎",
+  "🥺",
+  "😢",
+  "😭",
+  "😡",
+  "🤔",
+  "🤯",
+  "😴",
+  "🥳",
+  "😇",
+  "🤗",
+  "😏",
+  "🫡",
+  "🥹",
+  "😤",
+  // Hands & Gestures
+  "👋",
+  "🤝",
+  "👏",
+  "🙌",
+  "🤜",
+  "✌️",
+  "🤞",
+  "👍",
+  "👎",
+  "❤️",
+  "🫶",
+  "💪",
+  "🫂",
+  "🤲",
+  "☝️",
+  "🖖",
+  "🤟",
+  "🫰",
+  "👌",
+  "🤌",
+  // Nature & Elements
+  "🌺",
+  "🌻",
+  "🍃",
+  "🌾",
+  "🍄",
+  "🌊",
+  "🌋",
+  "🏔️",
+  "🌅",
+  "🌠",
+  "🌪️",
+  "🌧️",
+  "❄️",
+  "☄️",
+  "🌍",
+  "🌕",
+  "🌟",
+  "💥",
+  "🫧",
+  "🌬️",
+  // Symbols & Objects
+  "🔑",
+  "⚔️",
+  "🛡️",
+  "📿",
+  "🕯️",
+  "📖",
+  "🎯",
+  "🧿",
+  "🪬",
+  "⚗️",
+  "🔭",
+  "🪐",
+  "🧬",
+  "💠",
+  "🔷",
+  "🔶",
+  "🟣",
+  "⬛",
+  "🌐",
+  "🗝️",
 ];
 
 // ─── Keywords per channel type — exactly 5 per room (spec requirement) ──────
@@ -262,7 +347,7 @@ export default function MessageInput({
 
       {/* Emoji picker */}
       {showEmoji && (
-        <div className="absolute bottom-full left-0 right-0 bg-void-black/95 border border-void-gold/20 p-3 grid grid-cols-10 gap-1 max-h-32 overflow-y-auto">
+        <div className="absolute bottom-full left-0 right-0 bg-void-black/95 border border-void-gold/20 p-3 grid grid-cols-10 gap-1 max-h-48 overflow-y-auto z-50">
           {EMOJI_SET.map((emoji) => (
             <button
               key={emoji}

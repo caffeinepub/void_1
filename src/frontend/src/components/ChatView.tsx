@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ChevronUp, Lock } from "lucide-react";
+import { ArrowLeft, ChevronUp, Lock, Pin, X } from "lucide-react";
 /**
  * ChatView — Main message area for Light Room, Dark Room, and DMs.
  * Adds keyword filter bar for public rooms and upvote support.
@@ -90,6 +90,79 @@ interface ChatViewProps {
 // Map values: undefined = pending, null = failed decrypt, string = plaintext
 type DecryptMap = Map<string, string | null | undefined>;
 
+// ─── Pinned Message Banner ────────────────────────────────────────────────────
+function PinnedBanner({
+  decryptedText,
+  isLight,
+  onDismiss,
+}: {
+  decryptedText: string | null | undefined;
+  isLight: boolean;
+  onDismiss: () => void;
+}) {
+  const accentColor = isLight ? "rgba(255,215,0,0.8)" : "rgba(178,102,255,0.8)";
+  const borderColor = isLight
+    ? "rgba(255,215,0,0.25)"
+    : "rgba(142,45,226,0.25)";
+  const bgColor = isLight ? "rgba(255,215,0,0.05)" : "rgba(142,45,226,0.05)";
+
+  // Text to display
+  let displayText: string;
+  if (decryptedText === undefined) {
+    displayText = "Decrypting...";
+  } else if (decryptedText === null) {
+    displayText = "🔒 Sealed transmission";
+  } else {
+    displayText = decryptedText;
+  }
+
+  return (
+    <div
+      className="shrink-0 flex items-start gap-2.5 px-4 py-2.5"
+      style={{
+        background: bgColor,
+        borderBottom: `1px solid ${borderColor}`,
+        borderLeft: `3px solid ${accentColor}`,
+      }}
+    >
+      {/* Pin icon */}
+      <Pin
+        size={13}
+        className="shrink-0 mt-0.5"
+        style={{ color: accentColor }}
+      />
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-xs font-mono tracking-widest uppercase mb-0.5"
+          style={{ color: accentColor, opacity: 0.7 }}
+        >
+          Void Transmission
+        </p>
+        <p
+          className="text-xs text-white/70 leading-relaxed line-clamp-2"
+          style={{
+            fontStyle: decryptedText === null ? "italic" : "normal",
+          }}
+        >
+          {displayText}
+        </p>
+      </div>
+
+      {/* Dismiss button */}
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 text-white/20 hover:text-white/50 transition-colors mt-0.5"
+        aria-label="Dismiss pinned message"
+      >
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
+
 export default function ChatView({
   channel,
   channelType,
@@ -120,9 +193,36 @@ export default function ChatView({
   // Locally deleted message IDs (from localStorage void_deleted_{channel})
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
-  // Fetch pinned message for public rooms
+  // ─── Pinned message ──────────────────────────────────────────────────────────
   const isPublicRoom = channelType !== "dm";
-  useGetPinnedMessage(isPublicRoom ? channel : "");
+  const { data: pinnedMessage } = useGetPinnedMessage(
+    isPublicRoom ? channel : "",
+  );
+  const [pinnedText, setPinnedText] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [pinnedDismissed, setPinnedDismissed] = useState(false);
+  const dismissedPinnedIdRef = useRef<string | null>(null);
+
+  // Decrypt pinned message whenever it or the encryption key changes
+  useEffect(() => {
+    if (!pinnedMessage || !isReady) return;
+    // If already dismissed this specific pinned message, skip
+    if (dismissedPinnedIdRef.current === pinnedMessage.id) return;
+    // Reset dismissed state when a new pinned message arrives
+    setPinnedDismissed(false);
+    setPinnedText(undefined); // shimmer while decrypting
+    decryptReceived(pinnedMessage.ciphertext).then((plain) => {
+      setPinnedText(plain);
+    });
+  }, [pinnedMessage, isReady, decryptReceived]);
+
+  const handleDismissPinned = useCallback(() => {
+    setPinnedDismissed(true);
+    if (pinnedMessage) dismissedPinnedIdRef.current = pinnedMessage.id;
+  }, [pinnedMessage]);
+
+  const showPinnedBanner = isPublicRoom && !!pinnedMessage && !pinnedDismissed;
 
   // ─── Load deleted message IDs from localStorage ───────────────────────────
   useEffect(() => {
@@ -417,6 +517,15 @@ export default function ChatView({
             );
           })}
         </div>
+      )}
+
+      {/* Pinned message banner — shown for public rooms when a message is pinned */}
+      {showPinnedBanner && pinnedMessage && (
+        <PinnedBanner
+          decryptedText={pinnedText}
+          isLight={isLightRoom}
+          onDismiss={handleDismissPinned}
+        />
       )}
 
       {/* Messages scroll container — flex-1 + min-h-0 is critical for bounded scroll */}

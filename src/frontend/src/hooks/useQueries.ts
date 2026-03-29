@@ -374,8 +374,7 @@ export function useGetAllUserProfiles() {
     queryKey: ["allUserProfiles"],
     queryFn: async () => {
       if (!actor) return [];
-      // getAllUserProfiles is not in the current backend interface; return empty array
-      return [];
+      return actor.getAllUserProfiles();
     },
     enabled: !!actor && !actorFetching,
     staleTime: 30_000,

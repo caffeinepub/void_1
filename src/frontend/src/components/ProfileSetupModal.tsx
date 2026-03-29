@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useAvatar } from "../hooks/useAvatar";
 import { useEncryption } from "../hooks/useEncryption";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useSaveCallerUserProfile } from "../hooks/useQueries";
+import {
+  useSaveCallerUserProfile,
+  useSetCosmicHandle,
+} from "../hooks/useQueries";
 import { useVoidId } from "../hooks/useVoidId";
 import { registerKnownUser } from "../lib/userRegistry";
 
@@ -11,16 +14,42 @@ const BIO_MAX = 280;
 export default function ProfileSetupModal() {
   const { identity } = useInternetIdentity();
   const voidId = useVoidId();
-  const { mutateAsync: saveProfile, isPending } = useSaveCallerUserProfile();
+  const { mutateAsync: saveProfile, isPending: savePending } =
+    useSaveCallerUserProfile();
+  const { mutateAsync: setCosmicHandle, isPending: handlePending } =
+    useSetCosmicHandle();
   const { isReady: encryptionReady } = useEncryption();
-  const [cosmicHandle, setCosmicHandle] = useState("");
+  const [cosmicHandle, setCosmicHandleInput] = useState("");
   const [bio, setBio] = useState("");
+  const [handleError, setHandleError] = useState("");
   const avatarUrl = useAvatar(voidId ?? "");
+
+  const isPending = savePending || handlePending;
 
   if (!identity || !voidId) return null;
 
+  const HANDLE_RE = /^[a-zA-Z0-9_]{3,24}$/;
+  const cleanHandle = cosmicHandle.trim().replace(/^@/, "");
+
+  const validate = () => {
+    if (!cleanHandle) {
+      setHandleError("A Cosmic Handle is required to enter the Void.");
+      return false;
+    }
+    if (!HANDLE_RE.test(cleanHandle)) {
+      setHandleError(
+        "3–24 characters, letters, numbers, and underscores only.",
+      );
+      return false;
+    }
+    setHandleError("");
+    return true;
+  };
+
   const handleSubmit = async () => {
-    // Save bio to localStorage before saving profile
+    if (!validate()) return;
+
+    // Save bio to localStorage
     if (bio.trim()) {
       try {
         localStorage.setItem(`void_bio_${voidId}`, bio.trim());
@@ -28,13 +57,22 @@ export default function ProfileSetupModal() {
         // fail silently
       }
     }
-    await saveProfile({
-      voidId,
-      cosmicHandle: cosmicHandle.trim() || undefined,
-    });
-    // Update local registry so handle shows in chats right away
-    if (voidId && cosmicHandle.trim()) {
-      registerKnownUser(voidId, cosmicHandle.trim());
+
+    // Register profile first, then set the cosmic handle
+    await saveProfile({ voidId, cosmicHandle: undefined });
+    try {
+      await setCosmicHandle({ voidId, handle: cleanHandle });
+      registerKnownUser(voidId, cleanHandle);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.toLowerCase().includes("taken") ||
+        msg.toLowerCase().includes("exists")
+      ) {
+        setHandleError("That handle is already taken. Try another.");
+      } else {
+        setHandleError("Could not claim handle. Please try again.");
+      }
     }
   };
 
@@ -55,7 +93,7 @@ export default function ProfileSetupModal() {
             Welcome to the Void
           </h2>
           <p className="text-white/40 text-sm">
-            Your anonymous identity has been forged in the cosmos.
+            Choose your Cosmic Handle to enter the Void.
           </p>
         </div>
 
@@ -91,26 +129,37 @@ export default function ProfileSetupModal() {
             : "Generating encryption keys..."}
         </div>
 
-        {/* Optional cosmic handle */}
+        {/* Required cosmic handle */}
         <div className="mb-5">
           <label
             htmlFor="setup-cosmic-handle"
             className="block text-void-gold/60 text-xs uppercase tracking-widest mb-2"
           >
-            Cosmic Handle (optional)
+            Cosmic Handle <span className="text-void-gold">*</span>
           </label>
           <input
             id="setup-cosmic-handle"
             type="text"
             value={cosmicHandle}
-            onChange={(e) => setCosmicHandle(e.target.value)}
+            onChange={(e) => {
+              setCosmicHandleInput(e.target.value);
+              setHandleError("");
+            }}
             placeholder="@NebulaSage, @MayaBurner..."
             maxLength={32}
-            className="w-full bg-void-black/50 border border-void-gold/20 text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none focus:border-void-gold/50 transition-colors"
+            className={`w-full bg-void-black/50 border text-white placeholder:text-white/20 px-4 py-3 text-sm focus:outline-none transition-colors ${
+              handleError
+                ? "border-red-500/60 focus:border-red-500"
+                : "border-void-gold/20 focus:border-void-gold/50"
+            }`}
           />
-          <p className="text-white/30 text-xs mt-1">
-            Leave blank to remain fully anonymous
-          </p>
+          {handleError ? (
+            <p className="text-red-400/80 text-xs mt-1">{handleError}</p>
+          ) : (
+            <p className="text-white/30 text-xs mt-1">
+              3–24 characters, letters, numbers, underscores. Must be unique.
+            </p>
+          )}
         </div>
 
         {/* Optional bio */}
@@ -119,7 +168,10 @@ export default function ProfileSetupModal() {
             htmlFor="setup-bio"
             className="block text-void-gold/60 text-xs uppercase tracking-widest mb-2"
           >
-            Bio (optional)
+            Bio{" "}
+            <span className="text-white/30 text-xs normal-case">
+              (optional)
+            </span>
           </label>
           <div className="relative">
             <textarea
